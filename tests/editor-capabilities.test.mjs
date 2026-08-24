@@ -73,6 +73,11 @@ test("upload, export, sharing, and official print handoff are real actions", asy
   assert.match(app, /Bambu Connect or Bambu Studio/);
   assert.match(app, /devpartner@bambulab\.com/);
   assert.match(app, /undocumented private API/);
+  assert.match(app, /onExport=\{handleViewportExport\}/);
+  assert.match(app, /LEVO-\$\{profile\.shortName\}-Bambu-Handy\.3mf/);
+  assert.match(app, /https:\/\/makerworld\.com\/en\/upload/);
+  assert.match(app, /Private Model/);
+  assert.match(app, /Printer, AMS and heater confirmation happens in Bambu Handy/);
 });
 
 test("extended model loaders, streaming ZIP import, and no fixed app cap are wired", async () => {
