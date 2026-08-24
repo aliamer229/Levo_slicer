@@ -19,6 +19,18 @@ LEVO Web Slicer is distributed under the GNU Affero General Public License v3.0 
 
 This project does not copy code from the surveyed Bambu MCP repositories. They were used only to understand the integration boundary around `.gcode.3mf`, FTPS/MQTT transport, AMS mapping, and printer-state validation.
 
+### occt-import-js 0.0.23
+
+- Source: https://github.com/kovacsv/occt-import-js
+- License: GNU LGPL-2.1
+- Role: local STEP, IGES, and BREP tessellation through OpenCascade WebAssembly. The package license is installed with `occt-import-js` and is also linked above.
+
+### fflate 0.7.4
+
+- Source: https://github.com/101arrowz/fflate
+- License: MIT
+- Role: incremental, local ZIP archive decompression.
+
 ## Application dependencies
 
 The application also uses React, Next.js, Vinext, Vite, Three.js, Cloudflare Workers tooling, and their transitive dependencies under their respective licenses. Their package metadata and license files remain available in the dependency distribution produced by `npm ci`.

@@ -4,7 +4,9 @@ LEVO Studio is an Arabic-first, mobile-first browser workspace for preparing and
 
 ## Editor workspace
 
-- Import several STL, OBJ, 3MF, AMF, or PLY files by picker or drag-and-drop.
+- Import STL, OBJ, 3MF, AMF, PLY, STEP/STP, IGES/IGS, BREP, GLB/GLTF, FBX, DAE, 3DS, VRML/WRL, OFF, USDZ, KMZ, VTK/VTP, or MD2 files by picker or drag-and-drop.
+- Open a ZIP archive locally, stream its entries, identify supported models, and shelf-pack the imported objects across as many as nine plates.
+- Work without an application-defined file-size, batch-size, or project-count cap. Files never upload to the LEVO application server; practical capacity is still bounded by browser/device memory.
 - Select, move, rotate, scale, duplicate, delete, split disconnected components, and place objects on the bed.
 - Use multiple plates, switch the active plate, delete plates, and slice the current plate or every plate.
 - Use undo/redo, copy/paste/cut, box selection, zoom-all, zoom-bed, object visibility, and per-object extruder selection.
@@ -51,7 +53,7 @@ See Bambu Lab's official [Bambu Connect guide](https://wiki.bambulab.com/en/soft
 
 The current web engine does not implement Bambu Studio's Auto Arrange, Auto Orient, Cut, Boolean, modifier/negative parts, seam painting, complete color/MMU painting, text/SVG emboss, Measure, or variable layer-height tools. Their native toolbar entries stay disabled and LEVO reports the limitation instead of simulating success.
 
-LEVO supports real G-code export and an official Bambu Connect/Studio handoff, but direct browser-to-printer networking remains disabled. Raw G-code is not a validated Bambu `.gcode.3mf` job, and a website cannot reliably know the absolute local path required by desktop handoff schemes. Safe direct activation requires an approved local bridge, deterministic package validation, authenticated transport, live printer and AMS checks, firmware compatibility gates, and tests on physical X2D/H2D hardware. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
+LEVO supports real G-code export and an official Bambu Connect/Studio handoff, but direct browser-to-printer/cloud networking remains disabled. Bambu Lab's current authorization system restricts critical printer operations, including starting a print, to authorized software. Handy-style cloud printing therefore requires Bambu Lab partner approval, official integration documentation, and issued credentials; LEVO does not request a user's Bambu password or call undocumented private APIs. Raw G-code is also not a validated Bambu `.gcode.3mf` job, and a website cannot reliably know the absolute local path required by desktop handoff schemes. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
 
 ## License
 

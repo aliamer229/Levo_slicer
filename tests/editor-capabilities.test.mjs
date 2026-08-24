@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
 
 const appUrl = new URL("../app/slicer-client.tsx", import.meta.url);
 const cssUrl = new URL("../app/globals.css", import.meta.url);
 const engineUrl = new URL("../node_modules/three-slicer/viewer/dist/Viewport.js", import.meta.url);
+const archiveUrl = new URL("../app/archive-import.ts", import.meta.url);
+const loadersUrl = new URL("../app/model-loaders.ts", import.meta.url);
+const packingUrl = new URL("../app/plate-packing.ts", import.meta.url);
 
 test("mobile and desktop controls target real editor actions", async () => {
   const [app, engine] = await Promise.all([
@@ -54,7 +58,7 @@ test("mobile and desktop controls target real editor actions", async () => {
 test("upload, export, sharing, and official print handoff are real actions", async () => {
   const app = await readFile(appUrl, "utf8");
 
-  assert.match(app, /querySelector<HTMLInputElement>\('\[data-testid="stl-input"\]'\)/);
+  assert.match(app, /input\.dispatchEvent\(new Event\("change"/);
   assert.match(app, /new File\(\[gcode\], name, \{ type: "text\/x-gcode" \}\)/);
   assert.match(app, /downloadBlob\(file, file\.name\)/);
   assert.match(app, /const data: ShareData = \{ files: \[file\], title: file\.name \}/);
@@ -62,7 +66,44 @@ test("upload, export, sharing, and official print handoff are real actions", asy
   assert.match(app, /triggerSlice\(true\)/);
   assert.match(app, /https:\/\/wiki\.bambulab\.com\/en\/software\/bambu-connect/);
   assert.match(app, /Bambu Connect or Bambu Studio/);
-  assert.match(app, /Direct phone-to-printer networking needs an approved local Bambu bridge/);
+  assert.match(app, /devpartner@bambulab\.com/);
+  assert.match(app, /undocumented private API/);
+});
+
+test("extended model loaders, streaming ZIP import, and no fixed app cap are wired", async () => {
+  const [app, archive, loaders] = await Promise.all([
+    readFile(appUrl, "utf8"),
+    readFile(archiveUrl, "utf8"),
+    readFile(loadersUrl, "utf8"),
+  ]);
+
+  for (const extension of ["step", "stp", "iges", "igs", "brep", "glb", "gltf", "fbx", "dae", "3ds", "wrl", "vrml", "off", "usdz", "kmz", "vtk", "vtp", "md2"]) {
+    assert.ok(loaders.includes(`"${extension}"`), `loader extension ${extension} is missing`);
+  }
+  assert.match(loaders, /registerLoader\(/);
+  assert.match(loaders, /occt-import-js\.wasm/);
+  assert.match(archive, /new Unzip\(/);
+  assert.match(archive, /file\.stream\(\)\.getReader\(\)/);
+  assert.match(archive, /UnzipPassThrough/);
+  assert.match(app, /LEVO sets no fixed file-size or count cap/);
+  assert.doesNotMatch(app, /80 \* 1024 \* 1024|160 \* 1024 \* 1024|files\.length > 12/);
+});
+
+test("ZIP packing distributes models deterministically across plates", async () => {
+  const source = await readFile(packingUrl, "utf8");
+  const javascript = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const packingModule = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
+  const result = packingModule.packModelsAcrossPlates([
+    { id: 1, width: 180, depth: 180 },
+    { id: 2, width: 180, depth: 180 },
+    { id: 3, width: 40, depth: 40 },
+  ], 256, 256, 0, 9);
+  assert.equal(result.placements.length, 3);
+  assert.equal(result.platesUsed, 2);
+  assert.equal(result.overflowCount, 0);
+  assert.deepEqual(new Set(result.placements.map((placement) => placement.plate)), new Set([0, 1]));
 });
 
 test("mobile visual system uses solid surfaces and expandable controls", async () => {
@@ -100,5 +141,5 @@ test("verified profiles and explicit capability boundaries stay present", async 
     assert.ok(engine.includes(`id: "${id}"`), `boundary tool ${id} is missing`);
   }
   assert.match(engine, /Auto arrange[^\n]+Not implemented/);
-  assert.match(app, /Direct phone-to-printer networking needs an approved local Bambu bridge/);
+  assert.match(app, /Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization/);
 });

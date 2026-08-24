@@ -27,6 +27,7 @@ test("renders the production slicer shell and security policy", async () => {
     /^text\/html\b/i,
   );
   assert.match(response.headers.get("content-security-policy") ?? "", /wasm-unsafe-eval/);
+  assert.match(response.headers.get("content-security-policy") ?? "", /'unsafe-eval'/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
 

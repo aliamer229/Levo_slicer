@@ -5,9 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SlicerSettings } from "three-slicer";
 import type { SettingsPanelProps } from "three-slicer/components";
 import type { ViewportEvent, ViewportProps } from "three-slicer/viewer";
+import { FILE_PICKER_ACCEPT, extractModelArchive, fileExtension, normalizeModelFile } from "./archive-import";
+import { registerExtendedModelLoaders } from "./model-loaders";
+import { packModelsAcrossPlates } from "./plate-packing";
 
 type Locale = "ar" | "en";
-type Sheet = "setup" | "print" | "about" | null;
+type Sheet = "setup" | "print" | "connect" | "about" | null;
 type ProfileId = "bbl-x2d-04" | "bbl-h2d-04";
 type QualityId = "fine" | "standard" | "draft";
 type StrengthId = "light" | "standard" | "strong";
@@ -22,6 +25,8 @@ interface PrinterProfile {
   settingId: string;
   nozzle: number;
   bed: string;
+  bedWidth: number;
+  bedDepth: number;
   materialPreset: string;
   processPresets: Record<QualityId, string>;
 }
@@ -55,6 +60,18 @@ interface LoadedProfile {
   machineKeys: string[];
 }
 
+interface ArchivePlan {
+  beforeIds: Set<number>;
+  startPlate: number;
+  maxPlateCount: number;
+}
+
+interface ImportProgressState {
+  label: string;
+  ratio: number;
+  extracted: number;
+}
+
 const GCODE_ARTIFACTS = new Map<symbol, Map<number, string>>();
 
 const PROFILES: Record<ProfileId, PrinterProfile> = {
@@ -66,6 +83,8 @@ const PROFILES: Record<ProfileId, PrinterProfile> = {
     settingId: "GM045",
     nozzle: 0.4,
     bed: "256 × 256 × 260 mm",
+    bedWidth: 256,
+    bedDepth: 256,
     materialPreset: "Bambu PLA Basic @BBL X2D 0.4 nozzle",
     processPresets: {
       fine: "0.12mm High Quality @BBL X2D",
@@ -81,6 +100,8 @@ const PROFILES: Record<ProfileId, PrinterProfile> = {
     settingId: "GM033",
     nozzle: 0.4,
     bed: "350 × 320 × 325 mm",
+    bedWidth: 350,
+    bedDepth: 320,
     materialPreset: "Bambu PLA Basic @BBL H2D",
     processPresets: {
       fine: "0.12mm Fine @BBL H2D",
@@ -127,19 +148,20 @@ const EDITOR_SHADOW_CSS = `
   :host { color-scheme: dark; }
   .app-shell { direction: ltr; background: #111518; color: #dfe5e8; }
   .topbar, .left-rail { background: #151a1d; border-color: #2d353a; }
-  .tb-btn, .tb-icon, .tb-tabs, .tb-tabs button { background: #20262a; border-color: #343d43; color: #d5dde1; }
+  .tb-btn, .tb-icon, .tb-tabs, .tb-tabs button { background: #20262a; border-color: #343d43; border-radius: 6px; color: #d5dde1; }
   .tb-tabs button.on, .left-rail button.on { background: #91c720; color: #142008; }
   .viewport-col { background: #24292d; }
-  .vp-top-toolbar, .plate-bar, .brush-panel, .stats-card, .help-card { background: #171c1f; border-color: #343d43; box-shadow: 0 12px 28px #080a0b; }
+  .vp-top-toolbar, .plate-bar, .brush-panel, .stats-card, .help-card { background: #171c1f; border-color: #343d43; border-radius: 7px; box-shadow: 0 10px 24px #080a0b; }
   .vp-top-toolbar button:hover:not(:disabled), .left-rail button:hover { background: #2a3237; }
   .sidebar { background: #181d20; color: #dfe5e8; border-color: #343d43; }
   .sidebar-scroll, .side-bottom { background: #181d20; }
   .side-bottom { border-color: #343d43; }
-  .side-card { background: #21272b; border-color: #343d43; color: #dfe5e8; box-shadow: none; }
+  .side-card { background: #21272b; border-color: #343d43; border-radius: 7px; color: #dfe5e8; box-shadow: none; }
   .sc-head, .sc-info b, .obj-list2 .obj-name, .side-card .view-type-row, .side-card .slice-layer label, .side-card .grad-title, .sc-fold>summary b { color: #e7ecef; }
   .sc-info, .sc-note, .fil-mat, .side-card .role-legend, .side-card .slice-travel, .sc-fold>summary { color: #9ca8ae; }
   .side-card select, .side-card input:not([type="range"]):not([type="checkbox"]):not([type="color"]), .side-card .obj-ext { background: #14181b; color: #edf1f3; border-color: #3b454b; }
   .obj-list2 li.obj-selected, .filament-row.fil-active { background: #29351f; box-shadow: inset 3px 0 #91c720; }
+  button, .slice-btn, .export-btn, select, input { border-radius: 6px !important; }
   .slice-btn { background: #91c720; color: #142008; }
   .export-btn { background: #2a3237; color: #dfe5e8; border-color: #3b454b; }
   .empty-hint { display: none !important; }
@@ -195,6 +217,16 @@ const TEXT = {
     save: "حفظ 3MF",
     download: "G-code",
     print: "طباعة",
+    connectPrinter: "ربط الطابعة",
+    connectTitle: "ربط Bambu Lab الرسمي",
+    notConnected: "غير متصل",
+    partnerRequired: "يتطلب اعتماد Bambu Lab",
+    connectStatus: "الربط السحابي المباشر مقيد رسميًا",
+    connectStatusHelp: "تمنع منظومة التفويض الحالية بدء الطباعة السحابية من برنامج طرف ثالث غير معتمد. لن تطلب LEVO كلمة مرور حساب Bambu ولن تستخدم API خاصًا غير موثق.",
+    connectNext: "لتفعيل طباعة سحابية مثل Bambu Handy يجب اعتماد LEVO كشريك والحصول على وثائق وبيانات التفويض الرسمية من Bambu Lab.",
+    requestPartner: "طلب اعتماد LEVO",
+    integrationDocs: "وثائق التكامل الرسمي",
+    connectFallback: "المتاح الآن يعمل فعليًا: قطّع الملف ثم نزّل G-code أو 3MF وافتحه في Bambu Connect أو Bambu Studio.",
     printExport: "الطباعة والتصدير",
     printReady: "ملف الطباعة جاهز",
     printReadyHelp: "تم إنشاء G-code للـPlate الحالية ويمكن تنزيله أو مشاركته.",
@@ -219,7 +251,15 @@ const TEXT = {
     printSafety: "راجع الطابعة، نوع Plate، الفوهة، الفلمنت وAMS قبل بدء أي طباعة.",
     printNotReady: "قم بتقطيع Plate أولًا لإنشاء ملف الطباعة.",
     imported: "تمت إضافة الملفات إلى المشروع.",
-    formats: "STL · OBJ · 3MF · AMF · PLY",
+    formats: "STL · OBJ · 3MF · STEP · IGES · BREP · GLB · GLTF · FBX · DAE · 3DS · VRML · OFF · USDZ · KMZ · VTK · VTP · MD2 · AMF · PLY · ZIP",
+    formatsShort: "STL · 3MF · STEP · GLB · FBX · ZIP +",
+    importing: "جارٍ تحليل الملفات…",
+    zipAnalyzing: "جارٍ تحليل ZIP وترتيب المجسمات…",
+    zipArranged: "تم توزيع {models} مجسمًا تلقائيًا على {plates} Plate.",
+    zipOverflow: "تعذر توزيع {count} مجسمًا لأن المحرر يدعم 9 Plates كحد أقصى؛ بقيت في موضع الاستيراد للمراجعة اليدوية.",
+    zipOversized: "يوجد {count} مجسم أكبر من مساحة الطباعة؛ تم توسيطه ويحتاج تصغيرًا أو تقسيمًا.",
+    emptyFile: "الملف فارغ:",
+    importFailed: "تعذر استيراد الملف أو أن تنسيقه غير معروف.",
     quality: "الجودة",
     strength: "القوة",
     support: "الدعامات",
@@ -230,14 +270,14 @@ const TEXT = {
     advancedHelp: "تظهر داخل لوحة المحرر الكاملة.",
     close: "إغلاق",
     directPrint: "الطباعة المباشرة",
-    directPrintHelp: "التصدير والطباعة عبر Bambu Connect مدعومان. الإرسال الشبكي المباشر من الهاتف يحتاج جسرًا محليًا معتمدًا من Bambu.",
+    directPrintHelp: "التصدير إلى Bambu Connect وBambu Studio يعمل. الطباعة السحابية المباشرة غير مفعلة حتى تمنح Bambu Lab اعتماد الشريك ووثائق التفويض الرسمية.",
     realEditor: "محرر Plate حقيقي",
     realEditorHelp: "تحريك، دوران، تكبير وتصغير، حذف، تكرار، تقسيم، Undo/Redo، دعم عدة Plates وحفظ 3MF.",
     layers: "طبقات",
     missingTools: "حدود المحرك الحالية",
-    missingToolsHelp: "Auto Arrange وAuto Orient وCut وBoolean والنص ثلاثي الأبعاد ما زالت غير منفذة في محرك الويب ولا يتم تزويرها.",
+    missingToolsHelp: "ترتيب ZIP على عدة Plates يعمل. Auto Orient وCut وBoolean والنص ثلاثي الأبعاد ما زالت غير منفذة في المحرك ولا يتم تزويرها.",
     newConfirm: "بدء مشروع جديد؟ ستفقد التعديلات غير المحفوظة.",
-    fileLimit: "حتى 12 ملفًا في المرة، 80 MB لكل ملف و160 MB إجماليًا.",
+    fileLimit: "لا يوجد حد ثابت للحجم أو العدد داخل LEVO؛ الملفات تبقى على جهازك، والسعة الفعلية تعتمد على ذاكرة الجهاز والمتصفح.",
     actionUnavailable: "هذه الأداة غير متاحة في الوضع الحالي.",
   },
   en: {
@@ -271,6 +311,16 @@ const TEXT = {
     save: "Save 3MF",
     download: "G-code",
     print: "Print",
+    connectPrinter: "Connect printer",
+    connectTitle: "Official Bambu Lab connection",
+    notConnected: "Not connected",
+    partnerRequired: "Bambu Lab approval required",
+    connectStatus: "Direct cloud control is officially restricted",
+    connectStatusHelp: "Bambu's current authorization system blocks print initiation from an unapproved third-party application. LEVO will not ask for your Bambu password or use an undocumented private API.",
+    connectNext: "Handy-like cloud printing requires LEVO to become an approved partner and receive Bambu Lab's official authorization documentation and credentials.",
+    requestPartner: "Request LEVO partnership",
+    integrationDocs: "Official integration docs",
+    connectFallback: "Available now and functional: slice, then download G-code or 3MF and open it in Bambu Connect or Bambu Studio.",
     printExport: "Print & export",
     printReady: "Print file ready",
     printReadyHelp: "G-code for the current plate is ready to download or share.",
@@ -295,7 +345,15 @@ const TEXT = {
     printSafety: "Verify printer, plate, nozzle, filament and AMS before starting any print.",
     printNotReady: "Slice the plate first to create a printable file.",
     imported: "Files were added to the project.",
-    formats: "STL · OBJ · 3MF · AMF · PLY",
+    formats: "STL · OBJ · 3MF · STEP · IGES · BREP · GLB · GLTF · FBX · DAE · 3DS · VRML · OFF · USDZ · KMZ · VTK · VTP · MD2 · AMF · PLY · ZIP",
+    formatsShort: "STL · 3MF · STEP · GLB · FBX · ZIP +",
+    importing: "Analyzing files…",
+    zipAnalyzing: "Analyzing ZIP and arranging models…",
+    zipArranged: "Automatically arranged {models} models across {plates} plates.",
+    zipOverflow: "{count} models could not be distributed because the editor supports up to 9 plates; they remain at their imported positions for manual review.",
+    zipOversized: "{count} models exceed the build area; they were centered and need scaling or splitting.",
+    emptyFile: "Empty file:",
+    importFailed: "The file could not be imported or its format is unrecognized.",
     quality: "Quality",
     strength: "Strength",
     support: "Support",
@@ -306,14 +364,14 @@ const TEXT = {
     advancedHelp: "Shown inside the complete editor panel.",
     close: "Close",
     directPrint: "Direct print",
-    directPrintHelp: "Export and printing through Bambu Connect are supported. Direct phone-to-printer networking needs an approved local Bambu bridge.",
+    directPrintHelp: "Export to Bambu Connect and Bambu Studio works. Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization and documentation.",
     realEditor: "Real plate editor",
     realEditorHelp: "Move, rotate, scale, delete, duplicate, split, undo/redo, multi-plate editing and 3MF save.",
     layers: "layers",
     missingTools: "Current engine limits",
-    missingToolsHelp: "Auto Arrange, Auto Orient, Cut, Boolean and 3D text are not yet implemented by the web engine and are not simulated.",
+    missingToolsHelp: "ZIP multi-plate arrangement works. Auto Orient, Cut, Boolean and 3D text are not yet implemented by the engine and are not simulated.",
     newConfirm: "Start a new project? Unsaved edits will be lost.",
-    fileLimit: "Up to 12 files at once, 80 MB each and 160 MB total.",
+    fileLimit: "LEVO sets no fixed file-size or count cap; files stay on your device, while actual capacity depends on browser and device memory.",
     actionUnavailable: "This tool is unavailable in the current mode.",
   },
 } as const;
@@ -397,26 +455,50 @@ async function loadVerifiedProfile(profile: PrinterProfile, quality: QualityId, 
   return { settings: combined, machine: lockedMachine, machineKeys: [...api.printerKeys, "printer_model", "printer_settings_id"] };
 }
 
-function validateFiles(files: File[], existingObjects: number, locale: Locale) {
-  const ar = locale === "ar";
-  const allowed = new Set(["stl", "obj", "3mf", "amf", "ply"]);
-  if (files.length > 12 || existingObjects + files.length > 24) return ar
-    ? "يمكن أن يحتوي المشروع على 24 ملفًا كحد أقصى، مع إضافة 12 ملفًا في المرة."
-    : "A project can contain up to 24 imported files, with 12 added at once.";
-  let total = 0;
-  for (const file of files) {
-    const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!allowed.has(extension)) return ar ? `نوع الملف غير مدعوم: ${file.name}` : `Unsupported file: ${file.name}`;
-    if (!file.size) return ar ? `الملف فارغ: ${file.name}` : `Empty file: ${file.name}`;
-    if (file.size > 80 * 1024 * 1024) return ar
-      ? `${file.name} يتجاوز حد 80 MB للملف الواحد.`
-      : `${file.name} exceeds the 80 MB per-file limit.`;
-    total += file.size;
+function templateText(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce((result, [key, value]) => result.replace(`{${key}}`, String(value)), template);
+}
+
+function snapshotFootprint(snapshot: LevoSceneSnapshot) {
+  const positions = snapshot.localPos;
+  let minX = Infinity;
+  let minY = Infinity;
+  let minZ = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  let maxZ = -Infinity;
+  for (let index = 0; index + 2 < positions.length; index += 3) {
+    minX = Math.min(minX, positions[index]);
+    maxX = Math.max(maxX, positions[index]);
+    minY = Math.min(minY, positions[index + 1]);
+    maxY = Math.max(maxY, positions[index + 1]);
+    minZ = Math.min(minZ, positions[index + 2]);
+    maxZ = Math.max(maxZ, positions[index + 2]);
   }
-  if (total > 160 * 1024 * 1024) return ar
-    ? "الملفات المحددة تتجاوز حد 160 MB للدفعة."
-    : "The selected files exceed the 160 MB batch limit.";
-  return null;
+  const halfX = Math.max(0.005, (maxX - minX) * Math.abs(snapshot.scale.x) / 2);
+  const halfY = Math.max(0.005, (maxY - minY) * Math.abs(snapshot.scale.y) / 2);
+  const halfZ = Math.max(0.005, (maxZ - minZ) * Math.abs(snapshot.scale.z) / 2);
+  const cx = Math.cos(snapshot.rot.x);
+  const sx = Math.sin(snapshot.rot.x);
+  const cy = Math.cos(snapshot.rot.y);
+  const sy = Math.sin(snapshot.rot.y);
+  const cz = Math.cos(snapshot.rot.z);
+  const sz = Math.sin(snapshot.rot.z);
+  const r11 = cy * cz;
+  const r12 = sx * sy * cz - cx * sz;
+  const r13 = cx * sy * cz + sx * sz;
+  const r31 = -sy;
+  const r32 = sx * cy;
+  const r33 = cx * cy;
+  return {
+    id: snapshot.id,
+    width: 2 * (Math.abs(r11) * halfX + Math.abs(r12) * halfY + Math.abs(r13) * halfZ),
+    depth: 2 * (Math.abs(r31) * halfX + Math.abs(r32) * halfY + Math.abs(r33) * halfZ),
+  };
+}
+
+function nextFrame() {
+  return new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
 }
 
 function findShadowHost(container: HTMLElement | null) {
@@ -454,15 +536,20 @@ export default function SlicerClient() {
   const [layerCount, setLayerCount] = useState(0);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolTrayOpen, setToolTrayOpen] = useState(false);
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
   const viewportMountRef = useRef<HTMLDivElement>(null);
+  const filePickerRef = useRef<HTMLInputElement>(null);
   const shadowHostRef = useRef<HTMLElement | null>(null);
-  const objectCountRef = useRef(0);
   const sidebarOpenRef = useRef(false);
+  const plateCountRef = useRef(1);
+  const archivePlanRef = useRef<ArchivePlan | null>(null);
+  const arrangeTimerRef = useRef<number | null>(null);
+  const importingRef = useRef(false);
   const profileRequestRef = useRef(0);
   const machineRef = useRef<SlicerSettings>(fallbackSettings(PROFILES["bbl-x2d-04"]));
   const machineKeysRef = useRef<string[]>([]);
@@ -474,7 +561,8 @@ export default function SlicerClient() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([import("three-slicer/viewer"), import("three-slicer/components")])
+    registerExtendedModelLoaders()
+      .then(() => Promise.all([import("three-slicer/viewer"), import("three-slicer/components")]))
       .then(([viewerModule, componentsModule]) => {
         if (!active) return;
         setViewport(() => viewerModule.default);
@@ -514,30 +602,25 @@ export default function SlicerClient() {
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
 
-  useEffect(() => {
-    objectCountRef.current = objects.length;
-  }, [objects.length]);
+  useEffect(() => { plateCountRef.current = plateCount; }, [plateCount]);
 
   useEffect(() => {
     sidebarOpenRef.current = sidebarOpen;
     shadowHostRef.current?.setAttribute("data-levo-sidebar", sidebarOpen ? "open" : "closed");
   }, [sidebarOpen]);
 
-  useEffect(() => () => { GCODE_ARTIFACTS.delete(artifactId); }, [artifactId]);
+  useEffect(() => () => {
+    GCODE_ARTIFACTS.delete(artifactId);
+    if (arrangeTimerRef.current !== null) window.clearTimeout(arrangeTimerRef.current);
+  }, [artifactId]);
 
   useEffect(() => {
     const container = viewportMountRef.current;
     if (!container) return;
     let attachedRoot: ShadowRoot | null = null;
-    let changeListener: ((event: Event) => void) | null = null;
-    let dropListener: ((event: Event) => void) | null = null;
 
     const detach = () => {
-      if (attachedRoot && changeListener) attachedRoot.removeEventListener("change", changeListener, true);
-      if (attachedRoot && dropListener) attachedRoot.removeEventListener("drop", dropListener, true);
       attachedRoot = null;
-      changeListener = null;
-      dropListener = null;
     };
 
     const attach = () => {
@@ -554,30 +637,6 @@ export default function SlicerClient() {
         root.append(style);
       }
       style.textContent = EDITOR_SHADOW_CSS;
-
-      changeListener = (event) => {
-        const input = event.target;
-        if (!(input instanceof HTMLInputElement) || input.dataset.testid !== "stl-input" || !input.files) return;
-        const validationError = validateFiles(Array.from(input.files), objectCountRef.current, locale);
-        if (!validationError) { setError(""); return; }
-        event.stopImmediatePropagation();
-        input.value = "";
-        setError(validationError);
-        setStatus("error");
-      };
-      dropListener = (event) => {
-        const dropEvent = event as DragEvent;
-        const files = Array.from(dropEvent.dataTransfer?.files ?? []);
-        if (!files.length) return;
-        const validationError = validateFiles(files, objectCountRef.current, locale);
-        if (!validationError) { setError(""); return; }
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setError(validationError);
-        setStatus("error");
-      };
-      root.addEventListener("change", changeListener, true);
-      root.addEventListener("drop", dropListener, true);
       attachedRoot = root;
     };
 
@@ -589,7 +648,7 @@ export default function SlicerClient() {
       detach();
       if (shadowHostRef.current && container.contains(shadowHostRef.current)) shadowHostRef.current = null;
     };
-  }, [Viewport, locale, workspaceKey]);
+  }, [Viewport, workspaceKey]);
 
   const clearGeneratedOutput = useCallback(() => {
     GCODE_ARTIFACTS.get(artifactId)?.clear();
@@ -618,6 +677,135 @@ export default function SlicerClient() {
     return host?.shadowRoot ?? null;
   }, []);
 
+  const dispatchFilesToEngine = useCallback(async (files: File[]) => {
+    let input: HTMLInputElement | null = null;
+    for (let attempt = 0; attempt < 90; attempt += 1) {
+      input = viewportRoot()?.querySelector<HTMLInputElement>('[data-testid="stl-input"]') ?? null;
+      if (input) break;
+      await nextFrame();
+    }
+    if (!input) throw new Error(t.actionUnavailable);
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(file);
+    input.value = "";
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  }, [t.actionUnavailable, viewportRoot]);
+
+  const ensurePlateCount = useCallback(async (targetCount: number) => {
+    const target = Math.max(1, Math.min(9, targetCount));
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const root = viewportRoot();
+      const current = root?.querySelectorAll('[data-testid^="plate-"]:not([data-testid="plate-add"]):not([data-testid="plate-del"]):not([data-testid="plate-bar"])').length ?? plateCountRef.current;
+      if (current >= target) return current;
+      const add = root?.querySelector<HTMLButtonElement>('[data-testid="plate-add"]');
+      if (!add || add.disabled) return current;
+      add.click();
+      await nextFrame();
+      await nextFrame();
+    }
+    return plateCountRef.current;
+  }, [viewportRoot]);
+
+  const arrangeArchive = useCallback(async () => {
+    const plan = archivePlanRef.current;
+    if (!plan) return;
+    const api = window.__vpApi?.();
+    if (!api) return;
+    const snapshots = api.sceneSnapshot().filter((snapshot) => !plan.beforeIds.has(snapshot.id));
+    if (!snapshots.length) return;
+    archivePlanRef.current = null;
+    const packing = packModelsAcrossPlates(
+      snapshots.map(snapshotFootprint),
+      profile.bedWidth,
+      profile.bedDepth,
+      plan.startPlate,
+      plan.maxPlateCount,
+    );
+    await ensurePlateCount(Math.max(plateCountRef.current, plan.startPlate + packing.platesUsed));
+    for (const placement of packing.placements) {
+      api.placeObjectOnPlate(placement.id, placement.plate, placement.offsetX, placement.offsetY);
+    }
+    viewportRoot()?.querySelector<HTMLButtonElement>(`[data-testid="plate-${plan.startPlate}"]`)?.click();
+    api.frame();
+    const messages = [templateText(t.zipArranged, { models: snapshots.length, plates: packing.platesUsed })];
+    if (packing.oversizedCount) messages.push(templateText(t.zipOversized, { count: packing.oversizedCount }));
+    if (packing.overflowCount) messages.push(templateText(t.zipOverflow, { count: packing.overflowCount }));
+    setNotice(messages.join(" "));
+    setImportProgress(null);
+    setStatus("editing");
+  }, [ensurePlateCount, profile.bedDepth, profile.bedWidth, t.zipArranged, t.zipOverflow, t.zipOversized, viewportRoot]);
+
+  const scheduleArchiveArrangement = useCallback(() => {
+    if (!archivePlanRef.current) return;
+    if (arrangeTimerRef.current !== null) window.clearTimeout(arrangeTimerRef.current);
+    arrangeTimerRef.current = window.setTimeout(() => {
+      arrangeTimerRef.current = null;
+      void arrangeArchive();
+    }, 260);
+  }, [arrangeArchive]);
+
+  const importSelectedFiles = useCallback(async (rawFiles: File[]) => {
+    if (!rawFiles.length || importingRef.current) return;
+    importingRef.current = true;
+    setError("");
+    setNotice("");
+    setToolTrayOpen(false);
+    setImportProgress({ label: t.importing, ratio: 0, extracted: 0 });
+    let archivePlanned = false;
+    try {
+      const modelFiles: File[] = [];
+      let hasArchive = false;
+      for (const rawFile of rawFiles) {
+        if (!rawFile.size) throw new Error(`${t.emptyFile} ${rawFile.name}`);
+        const file = await normalizeModelFile(rawFile);
+        if (fileExtension(file.name) !== "zip") {
+          modelFiles.push(file);
+          continue;
+        }
+        hasArchive = true;
+        setImportProgress({ label: t.zipAnalyzing, ratio: 0, extracted: modelFiles.length });
+        const extracted = await extractModelArchive(file, (archiveProgress) => {
+          setImportProgress({
+            label: t.zipAnalyzing,
+            ratio: archiveProgress.compressedTotal ? archiveProgress.compressedRead / archiveProgress.compressedTotal : 0,
+            extracted: archiveProgress.extractedFiles,
+          });
+        });
+        modelFiles.push(...extracted);
+      }
+      if (!modelFiles.length) throw new Error(t.importFailed);
+      if (hasArchive) {
+        archivePlanned = true;
+        archivePlanRef.current = {
+          beforeIds: new Set(objects.map((object) => object.id)),
+          startPlate: objects.length ? (plateCountRef.current < 9 ? plateCountRef.current : selectedPlate) : 0,
+          maxPlateCount: objects.length && plateCountRef.current >= 9 ? selectedPlate + 1 : 9,
+        };
+        setImportProgress((current) => ({ label: t.zipAnalyzing, ratio: 1, extracted: current?.extracted ?? modelFiles.length }));
+      }
+      await dispatchFilesToEngine(modelFiles);
+      if (hasArchive && !window.__vpApi?.()) {
+        archivePlanRef.current = null;
+        archivePlanned = false;
+        setNotice(t.imported);
+        setImportProgress(null);
+      } else if (!hasArchive) {
+        setNotice(t.imported);
+        setImportProgress(null);
+      }
+    } catch (reason: unknown) {
+      archivePlanRef.current = null;
+      archivePlanned = false;
+      setImportProgress(null);
+      setError(reason instanceof Error ? reason.message : t.importFailed);
+      setStatus("error");
+    } finally {
+      importingRef.current = false;
+      if (!archivePlanned) setImportProgress(null);
+    }
+  }, [dispatchFilesToEngine, objects, selectedPlate, t.emptyFile, t.importFailed, t.imported, t.importing, t.zipAnalyzing]);
+
   const clickControl = useCallback((testId: string, silent = false) => {
     const root = viewportRoot();
     const element = root?.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
@@ -639,17 +827,20 @@ export default function SlicerClient() {
   }, [clickControl, t.actionUnavailable]);
 
   const openFiles = useCallback(() => {
-    const root = viewportRoot();
-    const input = root?.querySelector<HTMLInputElement>('[data-testid="stl-input"]');
-    if (input) {
-      input.value = "";
-      input.click();
-      setNotice("");
-      setToolTrayOpen(false);
-      return;
-    }
-    if (!clickControl("open-file", true) && !clickControl("empty-pick", true)) setNotice(t.actionUnavailable);
-  }, [clickControl, t.actionUnavailable, viewportRoot]);
+    if (!filePickerRef.current || importingRef.current) return;
+    filePickerRef.current.value = "";
+    filePickerRef.current.click();
+    setNotice("");
+    setToolTrayOpen(false);
+  }, []);
+
+  const handleDropFiles = useCallback((event: React.DragEvent<HTMLElement>) => {
+    const files = Array.from(event.dataTransfer.files);
+    if (!files.length) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void importSelectedFiles(files);
+  }, [importSelectedFiles]);
 
   const runTool = useCallback((testId: string) => {
     prepareAction(testId);
@@ -727,8 +918,12 @@ export default function SlicerClient() {
   const handleEvent = useCallback((event: ViewportEvent) => {
     if (event.type === "objects") {
       setObjects(event.value);
+      if (archivePlanRef.current && event.value.some((object) => !archivePlanRef.current?.beforeIds.has(object.id))) {
+        scheduleArchiveArrangement();
+      }
       if (event.value.length) setStatus((current) => current === "slicing" ? current : "editing");
     } else if (event.type === "plateCount") {
+      plateCountRef.current = event.value;
       setPlateCount(event.value);
     } else if (event.type === "selectedPlate") {
       setSelectedPlate(event.value);
@@ -748,7 +943,7 @@ export default function SlicerClient() {
       setError(event.value);
       setStatus("error");
     }
-  }, []);
+  }, [scheduleArchiveArrangement]);
 
   const handleSliced = useCallback((payload: SlicePayload) => {
     let artifacts = GCODE_ARTIFACTS.get(artifactId);
@@ -778,6 +973,12 @@ export default function SlicerClient() {
     setLayerCount(0);
     setNotice("");
     setError("");
+    setImportProgress(null);
+    archivePlanRef.current = null;
+    if (arrangeTimerRef.current !== null) {
+      window.clearTimeout(arrangeTimerRef.current);
+      arrangeTimerRef.current = null;
+    }
     setSidebarOpen(false);
     setToolTrayOpen(false);
     setSheet(null);
@@ -800,10 +1001,22 @@ export default function SlicerClient() {
   const statusLabel = status === "slicing" ? `${Math.round(progress * 100)}%` : status === "ready" ? `${layerCount || "✓"} ${t.layers}` : t.local;
   const printReady = status === "ready" && Boolean(currentGcode());
   const slicedPlateCount = GCODE_ARTIFACTS.get(artifactId)?.size ?? 0;
-  const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : t.settings;
+  const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : sheet === "connect" ? t.connectTitle : t.settings;
 
   return (
     <main className="studio-app" dir={locale === "ar" ? "rtl" : "ltr"}>
+      <input
+        ref={filePickerRef}
+        className="model-file-picker"
+        type="file"
+        accept={FILE_PICKER_ACCEPT}
+        multiple
+        onChange={(event) => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          event.currentTarget.value = "";
+          void importSelectedFiles(files);
+        }}
+      />
       <header className="studio-header">
         <button className="studio-brand" onClick={() => setSheet("about")} aria-label={t.about}><span>LE</span></button>
         <div className="studio-project">
@@ -815,6 +1028,7 @@ export default function SlicerClient() {
           <button className="import-action" onClick={openFiles} title={t.files}><Icon name="file"/><span>{t.files}</span></button>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
+          <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
           <button className={`panel-button ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen((value) => !value)} aria-label={t.panel}><Icon name="layers"/></button>
           <button onClick={() => setSheet("about")} aria-label={t.about}><Icon name="info"/></button>
@@ -822,7 +1036,12 @@ export default function SlicerClient() {
         </div>
       </header>
 
-      <section className="editor-area">
+      <section
+        className="editor-area"
+        aria-busy={Boolean(importProgress)}
+        onDragOverCapture={(event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); }}
+        onDropCapture={handleDropFiles}
+      >
         <div className="viewport-mount" ref={viewportMountRef}>
           {Viewport ? (
             <Viewport
@@ -846,10 +1065,16 @@ export default function SlicerClient() {
         {Viewport && !objects.length && status !== "error" && <section className="empty-upload-card" aria-label={t.files}>
           <span className="empty-upload-icon"><Icon name="file"/></span>
           <strong>{t.files}</strong>
-          <p>{t.formats}</p>
+          <p>{t.formatsShort}</p>
           <button onClick={openFiles}><Icon name="plus"/><span>{t.add}</span></button>
           <small>{t.fileLimit}</small>
         </section>}
+
+        {importProgress && <div className="import-progress" role="status" aria-live="polite">
+          <span className="import-spinner"/>
+          <div><strong>{importProgress.label}</strong><small>{importProgress.extracted ? `${importProgress.extracted} ${t.objects}` : t.formatsShort}</small></div>
+          <progress max="1" value={Math.max(0, Math.min(1, importProgress.ratio))}/>
+        </div>}
 
         {(error || notice) && <div className={`editor-message ${error ? "error" : "notice"}`} role={error ? "alert" : "status"}>
           <span>{error || notice}</span><button onClick={() => { setError(""); setNotice(""); if (status === "error") setStatus("editing"); }} aria-label={t.close}><Icon name="close"/></button>
@@ -921,11 +1146,22 @@ export default function SlicerClient() {
               <div><strong>{t.officialPrint}</strong><p>{t.officialPrintHelp}</p><p>{t.mobilePrintHelp}</p></div>
               <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noreferrer"><span>{t.openBambuGuide}</span><Icon name="external"/></a>
             </div>
+            <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
             <p className="print-safety"><Icon name="info"/><span>{t.printSafety}</span></p>
+          </div> : sheet === "connect" ? <div className="sheet-body connect-body">
+            <div className="connection-state"><span><i/></span><div><strong>{t.notConnected}</strong><small>{t.partnerRequired}</small></div></div>
+            <div className="connection-policy"><Icon name="info"/><div><strong>{t.connectStatus}</strong><p>{t.connectStatusHelp}</p><p>{t.connectNext}</p></div></div>
+            <p className="connection-fallback">{t.connectFallback}</p>
+            <div className="connection-links">
+              <a className="primary" href="mailto:devpartner@bambulab.com?subject=LEVO%20Studio%20Bambu%20Lab%20integration"><span>{t.requestPartner}</span><Icon name="external"/></a>
+              <a href="https://wiki.bambulab.com/en/software/third-party-integration" target="_blank" rel="noreferrer"><span>{t.integrationDocs}</span><Icon name="external"/></a>
+              <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noreferrer"><span>{t.openBambuGuide}</span><Icon name="external"/></a>
+            </div>
           </div> : <div className="sheet-body about-body">
             <div className="capability verified"><i/><span><strong>{t.realEditor}</strong><small>{t.realEditorHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
+            <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
             <a href="https://github.com/aliamer229/Levo_slicer" target="_blank" rel="noreferrer">GitHub · AGPL source</a>
           </div>}
         </section>

@@ -4,8 +4,10 @@ Statuses describe the checked-in browser implementation and automated verificati
 
 | Capability | Status | Evidence / boundary |
 |---|---|---|
-| STL, OBJ, 3MF, AMF, PLY import | Implemented | Native multi-file picker and drop handler; LEVO applies extension, empty-file, per-file, batch, and project-count limits first. |
-| STEP import | Missing | Not accepted or advertised by the current loader. |
+| Mesh import | Implemented | STL, OBJ, 3MF, AMF, PLY, GLB/GLTF, FBX, DAE, 3DS, VRML/WRL, OFF, USDZ, KMZ, VTK/VTP, and MD2 use native or registered Three.js loaders. Unknown/extensionless common formats are signature-sniffed. |
+| CAD import | Implemented | STEP/STP, IGES/IGS, and BREP/BRP are tessellated locally with `occt-import-js`/OpenCascade WebAssembly. |
+| ZIP model import | Implemented | ZIP entries are decompressed incrementally, filtered/sniffed, naturally sorted, and the resulting objects are shelf-packed across up to nine plates. |
+| Import sizing | Local/device-bounded | LEVO applies no fixed byte, batch, or project-count cap and uploads nothing to an application server. Browser/device memory and CPU are the practical limit. |
 | Selection and object list | Implemented | Click and box selection, object visibility, select-all, and per-object extruder controls. |
 | Move, rotate, scale | Implemented | Native Three.js transform gizmos plus keyboard nudging/rotation. |
 | Delete, delete-all, duplicate | Implemented | Native toolbar, context-menu, keyboard, and mobile actions. |
@@ -26,13 +28,14 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Toolpath preview | Implemented | Real G-code rendering with layer range, single-layer, travel toggle, and multiple view legends. |
 | Raw G-code export and share | Implemented | Selected-plate and combined local downloads; mobile/desktop Web Share file handoff when supported; no application-server upload. |
 | Bambu Connect / Studio handoff | Implemented | Print & Export explains the explicit official desktop handoff and links the Bambu Connect guide. Printer, plate, nozzle, and AMS confirmation remain in Bambu software. |
-| Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
+| ZIP multi-plate arrange | Implemented | Imported ZIP objects are size-sorted and packed across the active printer's bed dimensions. Oversized objects and the nine-plate ceiling produce explicit warnings. |
+| General Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
 | Cut / Boolean / modifier parts | Missing | Visible as disabled native controls; the web engine lacks the geometry/part implementation. |
 | Seam paint / Text / Measure / variable layers | Missing | Visible as disabled native controls and described in the platform-status sheet. |
 | Background persistence | Missing | Save `.3mf` explicitly; a reload clears unsaved state. |
 | Printer discovery and status | Disabled | No network probe and no fabricated printer state. |
 | AMS mapping and status | Disabled | No fabricated trays, colors, or material availability. |
 | Bambu `.gcode.3mf` packaging | Missing | Raw G-code is not represented as a validated Bambu print project. |
-| Direct browser-to-printer print | Disabled | Requires an approved authenticated bridge, package/state validation, AMS mapping, and physical X2D/H2D tests. LEVO does not fake a successful printer connection. |
+| Direct Bambu cloud/browser print | Officially gated | Bambu's authorization system requires approved integration documentation and credentials for print initiation. LEVO exposes the real blocked state and partner-request path; it never fabricates a connection or asks for a Bambu account password. |
 
 “Implemented” means the action exists in source and is covered by type, lint, build, rendered-shell, and engine-control contract checks where applicable. “Profile-integrated” means the bundled Orca profile is used and locked; it is not a claim of hardware certification.

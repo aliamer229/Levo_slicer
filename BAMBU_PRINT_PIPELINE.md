@@ -2,12 +2,13 @@
 
 LEVO supports an explicit, user-controlled print handoff today: slice locally, download or share the actual `.gcode`, then open/transfer it to Bambu Connect or Bambu Studio and verify the real printer state there. On phones, the supported handoff is share/download to a Bambu Connect computer or a printer-supported removable-storage path.
 
-Direct browser-to-printer networking is intentionally disabled. A safe implementation cannot treat raw G-code as a drop-in printer job, claim a printer is connected without live evidence, or assume that a browser knows the downloaded file's absolute desktop path.
+Direct browser-to-printer/cloud networking is intentionally disabled. Bambu Lab's current authorization control restricts critical printer operations, including print initiation, to authorized software. A safe implementation cannot treat raw G-code as a drop-in printer job, claim a printer is connected without live evidence, call an undocumented private cloud API, ask for the user's Bambu password, or assume that a browser knows the downloaded file's absolute desktop path.
 
 Official references:
 
 - [Bambu Connect](https://wiki.bambulab.com/en/software/bambu-connect)
 - [Bambu third-party integration](https://wiki.bambulab.com/en/software/third-party-integration)
+- [Bambu authorization control announcement](https://blog.bambulab.com/firmware-update-introducing-new-authorization-control-system-2/)
 
 ## Required gated pipeline
 
@@ -31,6 +32,8 @@ Official references:
 - Compatibility adapters isolated by printer model/firmware generation.
 
 ## Evidence required before enabling
+
+- Bambu Lab partner approval, official technical documentation, and issued authorization credentials (`devpartner@bambulab.com`).
 
 - Golden package fixtures accepted by Bambu Studio/Connect without mutation.
 - Negative tests for corrupt metadata, wrong model, wrong nozzle, overflow, and unsafe AMS mapping.
