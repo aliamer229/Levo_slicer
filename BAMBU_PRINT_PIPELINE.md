@@ -1,6 +1,6 @@
 # Bambu print pipeline
 
-LEVO supports an explicit, user-controlled print handoff today: slice locally, download or share the actual `.gcode`, then open/transfer it to Bambu Connect or Bambu Studio and verify the real printer state there. On phones, the supported handoff is share/download to a Bambu Connect computer or a printer-supported removable-storage path.
+LEVO supports explicit, user-controlled print handoffs today. Desktop users can slice locally, download or share the actual `.gcode`, then open/transfer it to Bambu Connect or Bambu Studio and verify the real printer state there. Phone-only users can export the current Bambu/Orca-compatible `.3mf` project, upload it as a **Private Model** at MakerWorld, and initiate the cloud print from Bambu Handy after verifying the printer and AMS. Supported removable storage remains the offline fallback.
 
 Direct browser-to-printer/cloud networking is intentionally disabled. Bambu Lab's current authorization control restricts critical printer operations, including print initiation, to authorized software. A safe implementation cannot treat raw G-code as a drop-in printer job, claim a printer is connected without live evidence, call an undocumented private cloud API, ask for the user's Bambu password, or assume that a browser knows the downloaded file's absolute desktop path.
 
@@ -41,4 +41,4 @@ Official references:
 - Verified upload, start, cancellation, reconnect, and error-state behavior.
 - A documented firmware/authorization compatibility matrix.
 
-Until all gates pass, the product remains at real G-code preview/download/share plus the official user-confirmed Bambu Connect/Studio handoff. It must not expose a direct-network button that can report success without the target printer's acknowledgement.
+Until all gates pass, the product remains at real G-code preview/download/share, the official user-confirmed Bambu Connect/Studio handoff, and the phone-only private MakerWorld → Bambu Handy flow. It must not expose a direct-network button that can report success without the target printer's acknowledgement.
