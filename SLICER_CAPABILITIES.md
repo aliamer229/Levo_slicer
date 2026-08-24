@@ -28,6 +28,7 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Toolpath preview | Implemented | Real G-code rendering with layer range, single-layer, travel toggle, and multiple view legends. |
 | Raw G-code export and share | Implemented | Selected-plate and combined local downloads; mobile/desktop Web Share file handoff when supported; no application-server upload. |
 | Bambu Connect / Studio handoff | Implemented | Print & Export explains the explicit official desktop handoff and links the Bambu Connect guide. Printer, plate, nozzle, and AMS confirmation remain in Bambu software. |
+| Phone-only Bambu Handy handoff | Implemented | Exports the current Bambu/Orca-compatible 3MF project to the phone, then guides a private MakerWorld upload and final confirmation inside Bambu Handy. It does not impersonate an official cloud client or claim the printer started early. |
 | ZIP multi-plate arrange | Implemented | Imported ZIP objects are size-sorted and packed across the active printer's bed dimensions. Oversized objects and the nine-plate ceiling produce explicit warnings. |
 | General Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
 | Cut / Boolean / modifier parts | Missing | Visible as disabled native controls; the web engine lacks the geometry/part implementation. |
