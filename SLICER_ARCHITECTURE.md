@@ -2,35 +2,29 @@
 
 ## Runtime flow
 
-1. The client validates the selected file extension, non-zero size, and the 80 MB mobile limit.
-2. `three-slicer/viewer` is dynamically imported only after a model is selected. Its Emscripten worker and WASM kernel stay off the empty landing screen.
-3. The prepare viewport parses the model and renders it with the selected local profile.
-4. Starting a slice remounts the viewport with `defaultAutoSlice` enabled. The engine performs the actual slice in its dedicated Web Worker and emits real progress events.
-5. Completion is accepted only when the run identifier and settings revision match the active job. Older results cannot replace a newer configuration.
-6. Lightweight statistics enter React state. The potentially large G-code string stays in a ref and is passed directly to preview or a download Blob.
-7. Cancellation invalidates the job and remounts the viewport, tearing down the current worker rather than merely hiding progress.
+1. `app/slicer-client.tsx` dynamically imports the editor and settings UI on the client. The page shell can render without touching WebGL or WebAssembly.
+2. The full `three-slicer` viewport owns geometry, selection, transforms, plates, undo history, painting, and preview state. LEVO listens to typed viewport events for object, plate, mode, progress, layer, notice, and error updates.
+3. Capturing listeners at the open editor shadow root validate picker and drag/drop batches before the native loader sees them: allowlisted extension, non-empty file, 80 MB per file, 160 MB per batch, 12 files per batch, and 24 imported files per project.
+4. X2D/H2D machine, process, and filament data are loaded from the engine's bundled Orca presets. Machine keys are re-applied after any advanced settings update or project import so a project cannot silently replace the selected machine envelope.
+5. Slicing starts from the native current/all-plate controls. The engine performs computation in its WebAssembly worker and reports real progress. Its own cancel action terminates the active work.
+6. Toolpath preview parses generated G-code and exposes layer range, single-layer, travel, and feature/speed/height/width/fan/temperature/filament views.
+7. Large G-code strings are stored outside React state in a per-workspace `Map`; only progress, counts, modes, and lightweight status reach the component tree.
+8. Native project save serializes geometry, transforms, plate placement, painting, and settings into `.3mf`. Reloading the page still clears the in-memory workspace unless the user saved it.
 
-## Boundaries
+## UI composition
 
-- `app/slicer-client.tsx`: mobile workflow, state machine, profile presets, job identity, estimates, export.
-- `three-slicer`: model parsing, prepare renderer, WASM slicing worker, G-code parser, toolpath renderer, advanced settings schema.
-- `worker/index.ts`: application delivery and response security headers only. It never receives model data.
-- Browser storage: none in this release. Files, settings, and results exist only for the current page lifetime.
+- Desktop uses the engine's complete top bar, gizmo rail, object toolbar, plate bar, object/filament/process sidebar, slice controls, and preview controls.
+- Mobile keeps those native controls but adds a touch-sized LEVO rail for the common commands. Buttons dispatch to native controls by stable `data-testid` rather than maintaining a second geometry model.
+- Shadow-root CSS only changes responsive layout. It does not replace engine action handlers.
+- Arabic/RTL applies to the LEVO shell; the technical editor canvas and transform coordinate system remain LTR.
 
-## State model
+## Trust boundaries
 
-`empty → modelReady → slicing → sliceReady → preview`
+- `three-slicer`: model parsing, geometry editing, project serialization, Orca settings, WASM slicing, and G-code/toolpath rendering.
+- `app/slicer-client.tsx`: product shell, profile locking, validation limits, mobile command adapters, status, and capability disclosure.
+- `worker/index.ts`: static delivery and response security headers. It does not receive models, projects, or G-code.
+- Browser memory: project and generated outputs for the current page lifetime.
 
-Validation and engine failures move to `error`. Any profile or setting change invalidates the current result and returns to `modelReady`. A run ID plus monotonic settings revision prevents stale worker callbacks from being committed.
+## Intentional boundaries
 
-## Performance choices
-
-- Viewer, WASM engine, and advanced settings UI are split from the initial route.
-- Slicing does not run on the main thread.
-- Only one selected `File` object and one generated G-code string are retained.
-- The G-code string is not copied into serializable React state.
-- A reduced-motion mode removes decorative animation without changing progress semantics.
-
-## Current intentional omissions
-
-Multi-plate project editing, object-list transforms, a layer-range slider, STEP import, background persistence, printer discovery, AMS mapping, and direct printing are not implemented. They are documented as partial or missing rather than represented by mock data.
+Auto Arrange, Auto Orient, Cut, mesh Boolean, part modifiers, seam painting, full Bambu color/MMU painting, text/SVG emboss, Measure, variable layers, STEP import, background persistence, printer discovery, AMS mapping, `.gcode.3mf` packaging, and direct printing are not implemented. Disabled native controls and the platform-status sheet state this explicitly.

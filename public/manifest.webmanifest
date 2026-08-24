@@ -1,10 +1,10 @@
 {
-  "name": "LEVO Web Slicer",
-  "short_name": "LEVO Slicer",
-  "description": "Mobile-first local browser slicing for Bambu Lab printers.",
+  "name": "LEVO Studio",
+  "short_name": "LEVO Studio",
+  "description": "Local multi-object and multi-plate browser editing and slicing for Bambu Lab printers.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4f6f5",
+  "background_color": "#0d1114",
   "theme_color": "#9bd51f",
   "icons": [
     {

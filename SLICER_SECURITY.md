@@ -2,34 +2,32 @@
 
 ## Local-data model
 
-LEVO does not upload models or G-code. The selected `File` is handed directly to the browser slicer, and generated output remains in memory until the user downloads it or leaves the page. There are no analytics, remote model URLs, cloud storage calls, printer credentials, or background sync endpoints in this release.
+LEVO does not upload models, projects, or generated G-code. Files are passed directly to the browser editor and slicer; output remains in memory until saved/downloaded or the page is closed. There are no analytics, third-party scripts, cloud-model storage calls, printer credentials, or background synchronization endpoints.
 
-## Input controls
+## Input and resource controls
 
-- Allowlist: STL, OBJ, 3MF, AMF, and PLY.
+- Format allowlist: STL, OBJ, 3MF, AMF, and PLY.
 - Empty files are rejected.
-- Files over 80 MB are rejected before the heavy viewer is loaded.
-- Engine failures are surfaced as errors, not reinterpreted as successful slices.
-- Raw G-code export is blocked when the engine reports bed or height overflow.
+- Maximum 80 MB per file, 160 MB per selection, 12 files added at once, and 24 imported files in a workspace.
+- The same capturing validation runs before both native file-input and drop handlers.
+- A project change clears previously generated G-code so stale output is not presented as current.
+- The selected printer's machine keys are re-applied after settings changes/import to prevent silent profile or build-volume replacement.
+- Engine errors remain errors; an out-of-bed model/toolpath cannot enter LEVO's ready state.
 
-These checks reduce accidental resource exhaustion but do not make complex geometry formats intrinsically safe. The parser and slicer still process untrusted input inside a same-origin Worker/WASM environment.
+These limits reduce accidental resource exhaustion but do not make complex geometry intrinsically safe. Parsing and slicing untrusted input still occur in the application's same-origin Worker/WebAssembly context.
 
 ## Browser policy
 
 Every application response receives:
 
-- a Content Security Policy restricted to the same origin, with `wasm-unsafe-eval` required by WebAssembly, `blob:` workers/images required by the slicer, and inline scripts/styles currently required by Vinext’s hydration and the dynamic progress indicator;
+- a same-origin Content Security Policy; `wasm-unsafe-eval` is required by WebAssembly, `blob:` is required for workers/downloads, and current Vinext hydration still requires inline allowances;
 - `frame-ancestors 'none'` and `X-Frame-Options: DENY`;
 - `X-Content-Type-Options: nosniff`;
 - a strict-origin referrer policy;
 - a permissions policy disabling camera, microphone, geolocation, payment, and USB.
 
-Inline allowances are the principal remaining CSP hardening gap. A future nonce-aware Vinext integration should replace `unsafe-inline` for scripts; no third-party script origin is permitted in the current policy.
+Replacing `unsafe-inline` with a nonce-aware Vinext integration is the main remaining CSP hardening item. No third-party script origin is permitted.
 
-## Printer credentials
+## Printer credentials and output trust
 
-No access codes, cloud tokens, certificates, or printer addresses are requested or stored. A future LEVO Bridge must keep credentials outside the browser, bind to an explicitly configured interface, use authenticated requests, validate target printers, rate-limit operations, and redact secrets from logs.
-
-## Output trust boundary
-
-A generated `.gcode` file is an expert artifact, not a verified Bambu project. The UI labels it accordingly and disables direct print. Enabling hardware actions requires package validation, printer-state validation, model/firmware compatibility gates, and physical X2D/H2D tests described in `BAMBU_PRINT_PIPELINE.md`.
+LEVO does not request or store printer addresses, access codes, cloud tokens, or certificates. Raw `.gcode` is an expert export, not a verified Bambu project. Direct print remains disabled until a bridge can keep secrets outside the browser, authenticate every request, validate a deterministic `.gcode.3mf`, verify the real target/firmware/nozzle/plate/AMS state, and pass physical-device tests described in `BAMBU_PRINT_PIPELINE.md`.

@@ -1,26 +1,29 @@
 # Mobile UX
 
-LEVO treats the phone as the primary surface rather than a compressed desktop slicer.
+LEVO presents the same editor state on desktop and mobile instead of maintaining a simplified second slicer.
 
-## Interaction model
+## Touch workflow
 
-- Arabic and RTL are the default; English and LTR are available from the header.
-- The empty state has one dominant action: add a model.
-- Once loaded, the model owns the largest part of the screen and slicing stays in a thumb-reachable bottom dock.
-- Common choices use large segmented controls: quality, strength, support, and printer profile.
-- Advanced Orca-style settings are lazy-loaded in a separate full-height sheet.
-- During slicing, an explicit progress overlay reports the engine’s real value and exposes cancellation.
-- Results place estimates, toolpath preview, download, and the direct-print boundary in one decision surface.
+- The workspace opens immediately with a visible build plate and one dominant Add action.
+- A horizontally scrollable object rail exposes Add, Move, Rotate, Scale, Duplicate, Delete, Zoom All, Zoom Plate, and Add Plate with touch-sized targets.
+- The persistent lower bar switches Prepare/Preview, saves `.3mf`, slices/cancels, slices all plates when relevant, and opens the complete object/settings drawer.
+- The native transform rail, object toolbar, plate switcher, overflow warning, paint panel, and status remain available above the LEVO bars.
+- Quick setup uses compact X2D/H2D, quality, strength, and support choices. The complete Orca-style process, motion, filament, object, and preview controls remain in the responsive drawer.
+- Arabic/RTL is the initial product language; English is available from the header. Coordinates, file names, and the embedded technical editor stay LTR.
+
+## Desktop workflow
+
+At 900 px and wider, LEVO removes the duplicated mobile rails and exposes the native full workspace: top project actions, prepare/preview tabs, gizmos, object tools, right sidebar, plate tabs, slice current/all, and G-code export.
 
 ## Accessibility and resilience
 
-- Controls have accessible names, visible text, and minimum touch-friendly sizing.
-- Dialog sheets use modal semantics and close on their explicit button or backdrop.
-- Progress uses an `aria-live` region.
-- Safe-area insets protect the header and bottom dock on notched devices.
-- Dark mode and reduced-motion preferences are supported.
-- Desktop layouts widen the viewer and dock but keep the same task order.
+- Buttons have visible labels or accessible names and keyboard focus indicators.
+- Modal sheets use dialog semantics, close explicitly or by backdrop, and honor device safe areas.
+- Error and notice banners use alert/status roles.
+- Slicing progress is reflected in visible state and the primary action.
+- Reduced-motion preferences disable nonessential animation.
+- File limits are enforced for both picker and drag/drop paths before parsing.
 
 ## Known UX gaps
 
-Touch transforms, object arrangement, multi-object management, per-layer filtering, keyboard focus trapping inside sheets, and localized engine error messages remain incomplete. The real embedded viewer still supports orbit interaction, but LEVO does not yet expose a full mobile transform rail.
+Focus trapping inside the setup/status sheet and complete localization of engine-owned English labels/errors remain incomplete. Unsupported geometry tools stay visible but disabled in the native object toolbar so their status is discoverable rather than hidden.

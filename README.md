@@ -1,23 +1,26 @@
-# LEVO Web Slicer
+# LEVO Studio
 
-LEVO is a mobile-first, Arabic-first browser slicer for Bambu Lab X2D and H2D profiles. Model parsing, slicing, progress reporting, G-code generation, estimates, and toolpath rendering run locally in the browser through the `three-slicer` WebAssembly worker. No model or generated G-code is uploaded by this application.
+LEVO Studio is an Arabic-first browser workspace for preparing and slicing models with Bambu Lab X2D and H2D profiles. The editor, model parser, Orca-derived settings, WebAssembly slicer, G-code generation, and toolpath preview run locally in the browser through `three-slicer` 0.2.2. This application does not upload models or generated G-code.
 
-The original repository was empty when this production baseline was created, so there was no prior UI or workflow to preserve. This release deliberately stops at verified raw G-code export: printer discovery, AMS state, package upload, and direct print are visible only as truthful capability boundaries and are not simulated.
+## Editor workspace
 
-## What works
+- Import several STL, OBJ, 3MF, AMF, or PLY files by picker or drag-and-drop.
+- Select, move, rotate, scale, duplicate, delete, split disconnected components, and place objects on the bed.
+- Use multiple plates, switch the active plate, delete plates, and slice the current plate or every plate.
+- Use undo/redo, copy/paste/cut, box selection, zoom-all, zoom-bed, object visibility, and per-object extruder selection.
+- Paint support enforcers/blockers and manage filaments from the complete desktop sidebar.
+- Save a `.3mf` project, export STL, preview real G-code by layer and feature, and download per-plate or combined output.
+- Work from the full desktop interface or a compact touch toolbar on phones and tablets.
 
-- Import STL, OBJ, 3MF, AMF, and PLY files up to the 80 MB mobile safety limit.
-- Inspect the real 3D model on the X2D or H2D build plate.
-- Slice in a dedicated Web Worker with real progress and cancellation by worker teardown.
-- Select 0.12, 0.20, or 0.28 mm layer presets, strength presets, support, and the full schema-driven advanced settings panel.
-- Review real time, layer, and PLA filament estimates returned by the engine.
-- Block export when the engine reports an out-of-volume model or toolpath.
-- Render the generated toolpath and download raw `.gcode` locally.
-- Install as a lightweight PWA shell.
+The quick setup sheet uses the Orca profile and process presets shipped by the engine:
+
+- `Bambu Lab X2D 0.4 nozzle` (GM045), clamped to the published 256 × 256 × 260 mm primary-nozzle volume.
+- `Bambu Lab H2D 0.4 nozzle` (GM033), using its bundled 350 × 320 × 325 mm profile.
+- Real 0.12, 0.20, and 0.24 mm process presets, plus strength and automatic-support overrides.
 
 ## Run locally
 
-Requirements: Node.js 22.13 or newer.
+Requires Node.js 22.13 or newer.
 
 ```bash
 npm ci
@@ -32,12 +35,12 @@ npx tsc --noEmit
 npm test
 ```
 
-## Capability boundary
+## Honest compatibility boundary
 
-Raw G-code is not the same thing as a Bambu print project. Direct printing requires a correctly structured and validated `.gcode.3mf` package, an authenticated transport, printer-state checks, AMS mapping, firmware compatibility checks, and real-device validation. LEVO does not claim those capabilities in this release.
+The current web engine does not implement Bambu Studio's Auto Arrange, Auto Orient, Cut, Boolean, modifier/negative parts, seam painting, complete color/MMU painting, text/SVG emboss, Measure, or variable layer-height tools. Their native toolbar entries stay disabled and LEVO reports the limitation instead of simulating success.
 
-See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md) for the detailed matrix and gated implementation plan.
+Direct printing is also disabled. Raw G-code is not a validated Bambu `.gcode.3mf` job; safe activation requires package generation and reopening, authenticated transport, live printer and AMS checks, firmware compatibility gates, and tests on physical X2D/H2D hardware. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 or later because its slicing integration is based on the AGPL-licensed `three-slicer`/OrcaSlicer line. See [LICENSE](LICENSE) and [OPEN_SOURCE_NOTICES.md](OPEN_SOURCE_NOTICES.md).
+GNU Affero General Public License v3.0 or later. The slicing integration is based on the AGPL-licensed `three-slicer`/OrcaSlicer line. See [LICENSE](LICENSE) and [OPEN_SOURCE_NOTICES.md](OPEN_SOURCE_NOTICES.md).
