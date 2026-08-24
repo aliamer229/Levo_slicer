@@ -310,6 +310,27 @@ button:disabled { cursor: not-allowed; }
 .print-action-grid b { font-size: 11px; }
 .print-action-grid small { color: var(--muted); font-size: 9px; }
 .print-download small { color: #33420e; }
+.phone-print-card { padding: 15px; display: flex; flex-direction: column; gap: 13px; border: 1px solid #465326; border-radius: 7px; background: #181d15; }
+.phone-print-card.ready { border-color: var(--accent-strong); }
+.phone-print-card > header { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 11px; align-items: center; }
+.phone-print-card > header > span { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 6px; background: var(--accent); color: var(--accent-ink); }
+.phone-print-card > header svg { width: 23px; height: 23px; }
+.phone-print-card > header div { min-width: 0; }
+.phone-print-card > header strong { font-size: 13px; }
+.phone-print-card > header p { margin: 4px 0 0; color: #b7c29f; font-size: 9.5px; line-height: 1.5; }
+.phone-print-steps { margin: 0; padding: 0; display: grid; gap: 7px; list-style: none; }
+.phone-print-steps li { min-height: 34px; display: grid; grid-template-columns: 25px minmax(0, 1fr); gap: 9px; align-items: center; color: var(--muted); font-size: 9.5px; line-height: 1.4; }
+.phone-print-steps b { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid #526331; border-radius: 50%; background: #222a1a; color: var(--accent); font-size: 10px; }
+.phone-print-actions { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.phone-print-actions :is(button, a) { width: 100%; min-height: 50px; padding: 9px 12px; border: 1px solid var(--accent-strong); border-radius: 6px; display: flex; align-items: center; gap: 10px; background: var(--accent); color: var(--accent-ink); text-align: start; text-decoration: none; cursor: pointer; }
+.phone-print-actions :is(button, a) > svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.phone-print-actions button > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.phone-print-actions b, .phone-print-actions a span { font-size: 11px; font-weight: 850; }
+.phone-print-actions small { color: #33420e; font-size: 8.8px; line-height: 1.35; }
+.phone-print-actions a { justify-content: space-between; background: #252e1c; color: #d7eea7; }
+.phone-print-confirmation { margin: 0; padding: 10px; display: flex; align-items: flex-start; gap: 8px; border-radius: 6px; background: #222a1a; color: #c3d59d; font-size: 9px; line-height: 1.45; }
+.phone-print-confirmation svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--accent); }
+.phone-print-rights { color: #7f8b73; font-size: 8.5px; line-height: 1.4; }
 .print-handoff { padding: 15px; display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 11px; direction: ltr; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
 .handoff-icon { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 6px; background: var(--surface); color: var(--accent); }
 .handoff-icon svg { width: 23px; height: 23px; }
