@@ -1,0 +1,17 @@
+{
+  "name": "LEVO Web Slicer",
+  "short_name": "LEVO Slicer",
+  "description": "Mobile-first local browser slicing for Bambu Lab printers.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f6f5",
+  "theme_color": "#9bd51f",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
