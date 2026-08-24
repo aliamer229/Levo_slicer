@@ -235,6 +235,17 @@ const TEXT = {
     shareUnavailable: "المشاركة غير مدعومة في هذا المتصفح؛ تم تنزيل الملف بدلًا منها.",
     exportAll: "تنزيل ملفات كل Plates",
     saveProject: "حفظ مشروع 3MF",
+    phonePrint: "الطباعة من الهاتف",
+    phonePrintHelp: "مسار يعمل بدون كمبيوتر أو اعتماد شريك: احفظ مشروع 3MF، ارفعه بشكل خاص إلى MakerWorld، ثم ابدأ الطباعة من Bambu Handy.",
+    prepareForHandy: "تجهيز ملف Bambu Handy",
+    prepareForHandyHelp: "يحفظ مشروع 3MF مع الطابعة والإعدادات الحالية في تطبيق الملفات.",
+    handyFileReady: "تم حفظ ملف 3MF في التنزيلات. ارفعه الآن إلى MakerWorld واجعله Private.",
+    openMakerWorld: "رفع خاص إلى MakerWorld",
+    phoneStepOne: "احفظ ملف 3MF الجاهز على الهاتف.",
+    phoneStepTwo: "ارفعه في MakerWorld واختر Private Model.",
+    phoneStepThree: "افتح النموذج في Bambu Handy، راجع AMS ثم اضغط Print.",
+    phoneRights: "ارفع فقط ملفًا تملكه أو لديك حق استخدامه، واجعله خاصًا إذا لم ترد نشره.",
+    phoneConfirmation: "تأكيد الطابعة وAMS وبدء التسخين يتم داخل Bambu Handy؛ LEVO لا يدّعي بدء الطباعة قبل تأكيد التطبيق الرسمي.",
     editTools: "أدوات المجسم",
     editToolsHelp: "كل أوامر التحرير الأساسية بحجم مناسب للمس.",
     undo: "تراجع",
@@ -246,7 +257,7 @@ const TEXT = {
     deleteAllConfirm: "حذف جميع المجسمات من Plate الحالية؟",
     officialPrint: "المسار الرسمي للطابعة",
     officialPrintHelp: "على الكمبيوتر: نزّل الملف ثم اسحبه إلى Bambu Connect أو Bambu Studio وأكمل اختيار الطابعة وAMS هناك.",
-    mobilePrintHelp: "على الهاتف: نزّل أو شارك الملف، ثم انقله إلى كمبيوتر Bambu Connect أو إلى USB/بطاقة ذاكرة مدعومة.",
+    mobilePrintHelp: "على الهاتف: استخدم مسار MakerWorld الخاص أعلاه، أو انقل G-code إلى USB/بطاقة ذاكرة مدعومة.",
     openBambuGuide: "فتح دليل Bambu Connect",
     printSafety: "راجع الطابعة، نوع Plate، الفوهة، الفلمنت وAMS قبل بدء أي طباعة.",
     printNotReady: "قم بتقطيع Plate أولًا لإنشاء ملف الطباعة.",
@@ -329,6 +340,17 @@ const TEXT = {
     shareUnavailable: "File sharing is unavailable in this browser, so the file was downloaded instead.",
     exportAll: "Download every plate",
     saveProject: "Save 3MF project",
+    phonePrint: "Print from your phone",
+    phonePrintHelp: "A phone-only path with no computer or partner approval: save the 3MF project, upload it privately to MakerWorld, then start it in Bambu Handy.",
+    prepareForHandy: "Prepare for Bambu Handy",
+    prepareForHandyHelp: "Saves a 3MF project with the current printer and settings to Files.",
+    handyFileReady: "The 3MF was saved to Downloads. Upload it to MakerWorld and keep it Private.",
+    openMakerWorld: "Private upload to MakerWorld",
+    phoneStepOne: "Save the prepared 3MF to your phone.",
+    phoneStepTwo: "Upload it to MakerWorld as a Private Model.",
+    phoneStepThree: "Open it in Bambu Handy, verify AMS, then tap Print.",
+    phoneRights: "Only upload a file you own or have permission to use, and keep it private if you do not want to publish it.",
+    phoneConfirmation: "Printer, AMS and heater confirmation happens in Bambu Handy; LEVO never claims printing started before the official app confirms it.",
     editTools: "Object tools",
     editToolsHelp: "Core editing commands in touch-friendly sizes.",
     undo: "Undo",
@@ -340,7 +362,7 @@ const TEXT = {
     deleteAllConfirm: "Delete every object on the current plate?",
     officialPrint: "Official printer handoff",
     officialPrintHelp: "On desktop, download the file, drop it into Bambu Connect or Bambu Studio, then confirm the printer and AMS there.",
-    mobilePrintHelp: "On mobile, download or share the file, then move it to a Bambu Connect computer or supported USB/memory card.",
+    mobilePrintHelp: "On mobile, use the private MakerWorld path above, or move G-code to supported USB/removable storage.",
     openBambuGuide: "Open Bambu Connect guide",
     printSafety: "Verify printer, plate, nozzle, filament and AMS before starting any print.",
     printNotReady: "Slice the plate first to create a printable file.",
@@ -573,6 +595,7 @@ export default function SlicerClient() {
   const [importProgress, setImportProgress] = useState<ImportProgressState | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolTrayOpen, setToolTrayOpen] = useState(false);
+  const [handyProjectReady, setHandyProjectReady] = useState(false);
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
@@ -584,6 +607,8 @@ export default function SlicerClient() {
   const arrangeTimerRef = useRef<number | null>(null);
   const importingRef = useRef(false);
   const profileRequestRef = useRef(0);
+  const exportIntentRef = useRef<"bambu-handy" | null>(null);
+  const exportIntentTimerRef = useRef<number | null>(null);
   const machineRef = useRef<SlicerSettings>(fallbackSettings(PROFILES["bbl-x2d-04"]));
   const machineKeysRef = useRef<string[]>([]);
   const [artifactId] = useState(() => Symbol("levo-editor-gcode"));
@@ -645,6 +670,7 @@ export default function SlicerClient() {
   useEffect(() => () => {
     GCODE_ARTIFACTS.delete(artifactId);
     if (arrangeTimerRef.current !== null) window.clearTimeout(arrangeTimerRef.current);
+    if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
   }, [artifactId]);
 
   useEffect(() => {
@@ -685,6 +711,7 @@ export default function SlicerClient() {
 
   const clearGeneratedOutput = useCallback(() => {
     GCODE_ARTIFACTS.get(artifactId)?.clear();
+    setHandyProjectReady(false);
     setProgress(0);
     setStatus((current) => current === "loading" ? current : "editing");
   }, [artifactId]);
@@ -867,6 +894,37 @@ export default function SlicerClient() {
     return true;
   }, [t.actionUnavailable, viewportRoot]);
 
+  const handleViewportExport = useCallback<NonNullable<ViewportProps["onExport"]>>((file, filename) => {
+    if (exportIntentRef.current !== "bambu-handy" || !filename.toLowerCase().endsWith(".3mf")) return;
+    exportIntentRef.current = null;
+    if (exportIntentTimerRef.current !== null) {
+      window.clearTimeout(exportIntentTimerRef.current);
+      exportIntentTimerRef.current = null;
+    }
+    const phoneFilename = `LEVO-${profile.shortName}-Bambu-Handy.3mf`;
+    downloadBlob(file, phoneFilename);
+    setHandyProjectReady(true);
+    setNotice(t.handyFileReady);
+    return true;
+  }, [profile.shortName, t.handyFileReady]);
+
+  const prepareForBambuHandy = useCallback(() => {
+    setHandyProjectReady(false);
+    exportIntentRef.current = "bambu-handy";
+    if (!clickControl("save-project", true)) {
+      exportIntentRef.current = null;
+      setNotice(t.actionUnavailable);
+      return;
+    }
+    if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
+    exportIntentTimerRef.current = window.setTimeout(() => {
+      if (exportIntentRef.current !== "bambu-handy") return;
+      exportIntentRef.current = null;
+      exportIntentTimerRef.current = null;
+      setNotice(t.actionUnavailable);
+    }, 30_000);
+  }, [clickControl, t.actionUnavailable]);
+
   const prepareAction = useCallback((testId: string) => {
     if (clickControl(testId, true)) return;
     clickControl("mode-prepare", true);
@@ -1028,6 +1086,12 @@ export default function SlicerClient() {
     }
     setSidebarOpen(false);
     setToolTrayOpen(false);
+    setHandyProjectReady(false);
+    exportIntentRef.current = null;
+    if (exportIntentTimerRef.current !== null) {
+      window.clearTimeout(exportIntentTimerRef.current);
+      exportIntentTimerRef.current = null;
+    }
     setSheet(null);
     setStatus("editing");
     setWorkspaceKey((value) => value + 1);
@@ -1091,6 +1155,7 @@ export default function SlicerClient() {
               defaultExtruderColors={["#303438", "#f3f4f4", "#9ad51f", "#3a8dff"]}
               onEvent={handleEvent}
               onSliced={(payload) => handleSliced(payload as SlicePayload)}
+              onExport={handleViewportExport}
             />
           ) : (
             <div className="editor-loader" aria-live="polite"><span/><strong>{t.loading}</strong><small>{profile.shortName} · {profile.bed}</small></div>
@@ -1176,6 +1241,20 @@ export default function SlicerClient() {
               <button onClick={() => clickControl("save-project")}><Icon name="save"/><span><b>{t.saveProject}</b><small>{objects.length} {t.objects}</small></span></button>
               {slicedPlateCount > 1 && <button onClick={() => clickControl("export-all")}><Icon name="layers"/><span><b>{t.exportAll}</b><small>{slicedPlateCount} {t.plate}</small></span></button>}
             </div>
+            <section className={`phone-print-card ${handyProjectReady ? "ready" : ""}`} aria-live="polite">
+              <header><span><Icon name="print"/></span><div><strong>{t.phonePrint}</strong><p>{t.phonePrintHelp}</p></div></header>
+              <ol className="phone-print-steps">
+                <li><b>1</b><span>{t.phoneStepOne}</span></li>
+                <li><b>2</b><span>{t.phoneStepTwo}</span></li>
+                <li><b>3</b><span>{t.phoneStepThree}</span></li>
+              </ol>
+              <div className="phone-print-actions">
+                <button onClick={prepareForBambuHandy}><Icon name="save"/><span><b>{t.prepareForHandy}</b><small>{t.prepareForHandyHelp}</small></span></button>
+                {handyProjectReady && <a href="https://makerworld.com/en/upload" target="_blank" rel="noreferrer"><span>{t.openMakerWorld}</span><Icon name="external"/></a>}
+              </div>
+              <p className="phone-print-confirmation"><Icon name="check"/><span>{t.phoneConfirmation}</span></p>
+              <small className="phone-print-rights">{t.phoneRights}</small>
+            </section>
             <div className="print-handoff">
               <span className="handoff-icon"><Icon name="print"/></span>
               <div><strong>{t.officialPrint}</strong><p>{t.officialPrintHelp}</p><p>{t.mobilePrintHelp}</p></div>
