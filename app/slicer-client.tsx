@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SlicerSettings } from "three-slicer";
 import type { SettingsPanelProps } from "three-slicer/components";
@@ -405,6 +405,40 @@ function Icon({ name }: { name: "plus" | "file" | "move" | "rotate" | "scale" | 
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
+function FileSelectControl({
+  children,
+  className,
+  disabled = false,
+  label,
+  onFiles,
+}: {
+  children: ReactNode;
+  className: string;
+  disabled?: boolean;
+  label: string;
+  onFiles: (files: File[]) => void;
+}) {
+  return (
+    <label className={`${className} file-select-control`} aria-disabled={disabled}>
+      <input
+        className="native-file-input"
+        type="file"
+        multiple
+        disabled={disabled}
+        aria-label={label}
+        data-supported-formats={FILE_PICKER_ACCEPT}
+        onClick={(event) => { event.currentTarget.value = ""; }}
+        onChange={(event) => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          event.currentTarget.value = "";
+          if (files.length) onFiles(files);
+        }}
+      />
+      {children}
+    </label>
+  );
+}
+
 function fallbackSettings(profile: PrinterProfile): SlicerSettings {
   const isX2D = profile.id === "bbl-x2d-04";
   const width = isX2D ? 256 : 350;
@@ -543,7 +577,6 @@ export default function SlicerClient() {
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
   const viewportMountRef = useRef<HTMLDivElement>(null);
-  const filePickerRef = useRef<HTMLInputElement>(null);
   const shadowHostRef = useRef<HTMLElement | null>(null);
   const sidebarOpenRef = useRef(false);
   const plateCountRef = useRef(1);
@@ -685,11 +718,27 @@ export default function SlicerClient() {
       await nextFrame();
     }
     if (!input) throw new Error(t.actionUnavailable);
-    const transfer = new DataTransfer();
-    for (const file of files) transfer.items.add(file);
-    input.value = "";
-    input.files = transfer.files;
-    input.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    const engineInput = input;
+    engineInput.value = "";
+    const dispatchChange = () => engineInput.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    try {
+      if (typeof DataTransfer !== "function") throw new Error("DataTransfer is unavailable");
+      const transfer = new DataTransfer();
+      for (const file of files) transfer.items.add(file);
+      engineInput.files = transfer.files;
+      if (engineInput.files?.length !== files.length) throw new Error("The browser rejected the transferred files");
+      dispatchChange();
+      return;
+    } catch {
+      const previousDescriptor = Object.getOwnPropertyDescriptor(engineInput, "files");
+      try {
+        Object.defineProperty(engineInput, "files", { configurable: true, value: files });
+        dispatchChange();
+      } finally {
+        if (previousDescriptor) Object.defineProperty(engineInput, "files", previousDescriptor);
+        else delete (engineInput as unknown as Record<string, unknown>).files;
+      }
+    }
   }, [t.actionUnavailable, viewportRoot]);
 
   const ensurePlateCount = useCallback(async (targetCount: number) => {
@@ -826,13 +875,11 @@ export default function SlicerClient() {
     });
   }, [clickControl, t.actionUnavailable]);
 
-  const openFiles = useCallback(() => {
-    if (!filePickerRef.current || importingRef.current) return;
-    filePickerRef.current.value = "";
-    filePickerRef.current.click();
+  const handlePickedFiles = useCallback((files: File[]) => {
     setNotice("");
     setToolTrayOpen(false);
-  }, []);
+    void importSelectedFiles(files);
+  }, [importSelectedFiles]);
 
   const handleDropFiles = useCallback((event: React.DragEvent<HTMLElement>) => {
     const files = Array.from(event.dataTransfer.files);
@@ -1005,18 +1052,6 @@ export default function SlicerClient() {
 
   return (
     <main className="studio-app" dir={locale === "ar" ? "rtl" : "ltr"}>
-      <input
-        ref={filePickerRef}
-        className="model-file-picker"
-        type="file"
-        accept={FILE_PICKER_ACCEPT}
-        multiple
-        onChange={(event) => {
-          const files = Array.from(event.currentTarget.files ?? []);
-          event.currentTarget.value = "";
-          void importSelectedFiles(files);
-        }}
-      />
       <header className="studio-header">
         <button className="studio-brand" onClick={() => setSheet("about")} aria-label={t.about}><span>LE</span></button>
         <div className="studio-project">
@@ -1025,7 +1060,7 @@ export default function SlicerClient() {
         </div>
         <div className="studio-status" data-status={status}><i/><span>{profileLoading ? t.profileLoading : statusLabel}</span></div>
         <div className="studio-actions">
-          <button className="import-action" onClick={openFiles} title={t.files}><Icon name="file"/><span>{t.files}</span></button>
+          <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
@@ -1066,7 +1101,7 @@ export default function SlicerClient() {
           <span className="empty-upload-icon"><Icon name="file"/></span>
           <strong>{t.files}</strong>
           <p>{t.formatsShort}</p>
-          <button onClick={openFiles}><Icon name="plus"/><span>{t.add}</span></button>
+          <FileSelectControl className="empty-upload-action" label={t.add} disabled={Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="plus"/><span>{t.add}</span></FileSelectControl>
           <small>{t.fileLimit}</small>
         </section>}
 
@@ -1083,7 +1118,7 @@ export default function SlicerClient() {
         {toolTrayOpen && <section className="mobile-tooltray" aria-label={t.editTools}>
           <header><span><strong>{t.editTools}</strong><small>{t.editToolsHelp}</small></span><button onClick={() => setToolTrayOpen(false)} aria-label={t.close}><Icon name="close"/></button></header>
           <div className="mobile-toolgrid">
-            <button onClick={openFiles}><Icon name="file"/><span>{t.add}</span></button>
+            <FileSelectControl className="tool-upload-action" label={t.add} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.add}</span></FileSelectControl>
             <button onClick={() => runTool("gizmo-move")}><Icon name="move"/><span>{t.move}</span></button>
             <button onClick={() => runTool("gizmo-rotate")}><Icon name="rotate"/><span>{t.rotate}</span></button>
             <button onClick={() => runTool("gizmo-scale")}><Icon name="scale"/><span>{t.scale}</span></button>
@@ -1104,7 +1139,7 @@ export default function SlicerClient() {
         </section>}
 
         <div className="mobile-primarybar">
-          <button className="mobile-nav-item" onClick={openFiles}><Icon name="file"/><span>{t.files}</span></button>
+          <FileSelectControl className="mobile-nav-item" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className={`mobile-nav-item ${toolTrayOpen ? "active" : ""}`} onClick={() => { setSidebarOpen(false); setToolTrayOpen((value) => !value); }} aria-expanded={toolTrayOpen}><Icon name="move"/><span>{t.tools}</span></button>
           <button className={`mobile-primary-action ${status === "slicing" ? "cancel" : ""} ${printReady ? "ready" : ""}`} onClick={primaryAction} disabled={!objects.length}>
             <Icon name={printReady ? "print" : "slice"}/><span>{status === "slicing" ? `${t.cancel} ${Math.round(progress * 100)}%` : printReady ? t.print : t.slice}</span>

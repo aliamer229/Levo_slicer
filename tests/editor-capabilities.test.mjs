@@ -58,7 +58,12 @@ test("mobile and desktop controls target real editor actions", async () => {
 test("upload, export, sharing, and official print handoff are real actions", async () => {
   const app = await readFile(appUrl, "utf8");
 
-  assert.match(app, /input\.dispatchEvent\(new Event\("change"/);
+  assert.match(app, /dispatchEvent\(new Event\("change"/);
+  assert.match(app, /className="native-file-input"/);
+  assert.match(app, /data-supported-formats=\{FILE_PICKER_ACCEPT\}/);
+  assert.doesNotMatch(app, /accept=\{FILE_PICKER_ACCEPT\}/);
+  assert.match(app, /Object\.defineProperty\(engineInput, "files"/);
+  assert.match(app, /typeof DataTransfer !== "function"/);
   assert.match(app, /new File\(\[gcode\], name, \{ type: "text\/x-gcode" \}\)/);
   assert.match(app, /downloadBlob\(file, file\.name\)/);
   assert.match(app, /const data: ShareData = \{ files: \[file\], title: file\.name \}/);
