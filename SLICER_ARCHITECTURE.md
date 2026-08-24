@@ -10,12 +10,13 @@
 6. Toolpath preview parses generated G-code and exposes layer range, single-layer, travel, and feature/speed/height/width/fan/temperature/filament views.
 7. Large G-code strings are stored outside React state in a per-workspace `Map`; only progress, counts, modes, and lightweight status reach the component tree.
 8. Native project save serializes geometry, transforms, plate placement, painting, and settings into `.3mf`. Reloading the page still clears the in-memory workspace unless the user saved it.
+9. After a successful slice, LEVO can materialize the selected G-code as a local file, download it, or pass it to the operating-system Web Share sheet. The Print & Export surface links to the official Bambu Connect handoff; no printer credential or network transport enters the browser application.
 
 ## UI composition
 
 - Desktop uses the engine's complete top bar, gizmo rail, object toolbar, plate bar, object/filament/process sidebar, slice controls, and preview controls.
-- Mobile keeps those native controls but adds a touch-sized LEVO rail for the common commands. Buttons dispatch to native controls by stable `data-testid` rather than maintaining a second geometry model.
-- Shadow-root CSS only changes responsive layout. It does not replace engine action handlers.
+- Mobile hides the cramped native top rails and exposes five fixed primary actions plus an expandable touch-sized tool grid. Buttons dispatch to native controls by stable `data-testid` rather than maintaining a second geometry model.
+- Shadow-root CSS changes layout and applies the same opaque charcoal surface system to engine-owned panels. It does not replace engine action handlers.
 - Arabic/RTL applies to the LEVO shell; the technical editor canvas and transform coordinate system remain LTR.
 
 ## Trust boundaries
@@ -27,4 +28,4 @@
 
 ## Intentional boundaries
 
-Auto Arrange, Auto Orient, Cut, mesh Boolean, part modifiers, seam painting, full Bambu color/MMU painting, text/SVG emboss, Measure, variable layers, STEP import, background persistence, printer discovery, AMS mapping, `.gcode.3mf` packaging, and direct printing are not implemented. Disabled native controls and the platform-status sheet state this explicitly.
+Auto Arrange, Auto Orient, Cut, mesh Boolean, part modifiers, seam painting, full Bambu color/MMU painting, text/SVG emboss, Measure, variable layers, STEP import, background persistence, printer discovery, AMS mapping, `.gcode.3mf` packaging, and direct browser-to-printer networking are not implemented. Disabled native controls and the platform-status sheet state this explicitly; real G-code export/share and the Bambu Connect/Studio handoff remain available.

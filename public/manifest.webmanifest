@@ -1,7 +1,7 @@
 {
   "name": "LEVO Studio",
   "short_name": "LEVO Studio",
-  "description": "Local multi-object and multi-plate browser editing and slicing for Bambu Lab printers.",
+  "description": "Mobile-first local plate editing, slicing, G-code export, and Bambu print handoff.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1114",

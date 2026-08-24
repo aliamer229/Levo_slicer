@@ -2,7 +2,7 @@
 
 ## Local-data model
 
-LEVO does not upload models, projects, or generated G-code. Files are passed directly to the browser editor and slicer; output remains in memory until saved/downloaded or the page is closed. There are no analytics, third-party scripts, cloud-model storage calls, printer credentials, or background synchronization endpoints.
+LEVO does not upload models, projects, or generated G-code to an application server. Files are passed directly to the browser editor and slicer; output remains in memory until saved/downloaded, intentionally shared through the device's operating-system share sheet, or the page is closed. There are no analytics, third-party scripts, cloud-model storage calls, printer credentials, or background synchronization endpoints.
 
 ## Input and resource controls
 
@@ -30,4 +30,4 @@ Replacing `unsafe-inline` with a nonce-aware Vinext integration is the main rema
 
 ## Printer credentials and output trust
 
-LEVO does not request or store printer addresses, access codes, cloud tokens, or certificates. Raw `.gcode` is an expert export, not a verified Bambu project. Direct print remains disabled until a bridge can keep secrets outside the browser, authenticate every request, validate a deterministic `.gcode.3mf`, verify the real target/firmware/nozzle/plate/AMS state, and pass physical-device tests described in `BAMBU_PRINT_PIPELINE.md`.
+LEVO does not request or store printer addresses, access codes, cloud tokens, or certificates. Raw `.gcode` is a real sliced export, but not a verified Bambu `.gcode.3mf` project. The UI sends users through Bambu Connect/Studio so those applications can perform the final printer, firmware, nozzle, plate, and AMS checks. Direct browser-to-printer networking remains disabled until an approved bridge can keep secrets outside the browser, authenticate every request, validate a deterministic package, verify the real device state, and pass the physical-device tests described in `BAMBU_PRINT_PIPELINE.md`.

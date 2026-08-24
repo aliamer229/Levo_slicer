@@ -24,7 +24,8 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Browser slicing | Implemented | Real WebAssembly slicer in an ES-module worker with progress and cancellation. |
 | Bed overflow guard | Implemented | Out-of-volume model or generated path raises an error and prevents a ready/safe result state. |
 | Toolpath preview | Implemented | Real G-code rendering with layer range, single-layer, travel toggle, and multiple view legends. |
-| Raw G-code export | Implemented | Per-plate and combined local downloads; no application upload. |
+| Raw G-code export and share | Implemented | Selected-plate and combined local downloads; mobile/desktop Web Share file handoff when supported; no application-server upload. |
+| Bambu Connect / Studio handoff | Implemented | Print & Export explains the explicit official desktop handoff and links the Bambu Connect guide. Printer, plate, nozzle, and AMS confirmation remain in Bambu software. |
 | Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
 | Cut / Boolean / modifier parts | Missing | Visible as disabled native controls; the web engine lacks the geometry/part implementation. |
 | Seam paint / Text / Measure / variable layers | Missing | Visible as disabled native controls and described in the platform-status sheet. |
@@ -32,6 +33,6 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Printer discovery and status | Disabled | No network probe and no fabricated printer state. |
 | AMS mapping and status | Disabled | No fabricated trays, colors, or material availability. |
 | Bambu `.gcode.3mf` packaging | Missing | Raw G-code is not represented as a validated Bambu print project. |
-| Direct print | Disabled | Requires authenticated transport, package/state validation, AMS mapping, and physical X2D/H2D tests. |
+| Direct browser-to-printer print | Disabled | Requires an approved authenticated bridge, package/state validation, AMS mapping, and physical X2D/H2D tests. LEVO does not fake a successful printer connection. |
 
 “Implemented” means the action exists in source and is covered by type, lint, build, rendered-shell, and engine-control contract checks where applicable. “Profile-integrated” means the bundled Orca profile is used and locked; it is not a claim of hardware certification.

@@ -7,7 +7,7 @@ import type { SettingsPanelProps } from "three-slicer/components";
 import type { ViewportEvent, ViewportProps } from "three-slicer/viewer";
 
 type Locale = "ar" | "en";
-type Sheet = "setup" | "about" | null;
+type Sheet = "setup" | "print" | "about" | null;
 type ProfileId = "bbl-x2d-04" | "bbl-h2d-04";
 type QualityId = "fine" | "standard" | "draft";
 type StrengthId = "light" | "standard" | "strong";
@@ -124,32 +124,39 @@ const EDITOR_PANELS = {
 } as unknown as NonNullable<ViewportProps["panels"]>;
 
 const EDITOR_SHADOW_CSS = `
-  .app-shell { direction: ltr; }
+  :host { color-scheme: dark; }
+  .app-shell { direction: ltr; background: #111518; color: #dfe5e8; }
+  .topbar, .left-rail { background: #151a1d; border-color: #2d353a; }
+  .tb-btn, .tb-icon, .tb-tabs, .tb-tabs button { background: #20262a; border-color: #343d43; color: #d5dde1; }
+  .tb-tabs button.on, .left-rail button.on { background: #91c720; color: #142008; }
+  .viewport-col { background: #24292d; }
+  .vp-top-toolbar, .plate-bar, .brush-panel, .stats-card, .help-card { background: #171c1f; border-color: #343d43; box-shadow: 0 12px 28px #080a0b; }
+  .vp-top-toolbar button:hover:not(:disabled), .left-rail button:hover { background: #2a3237; }
+  .sidebar { background: #181d20; color: #dfe5e8; border-color: #343d43; }
+  .sidebar-scroll, .side-bottom { background: #181d20; }
+  .side-bottom { border-color: #343d43; }
+  .side-card { background: #21272b; border-color: #343d43; color: #dfe5e8; box-shadow: none; }
+  .sc-head, .sc-info b, .obj-list2 .obj-name, .side-card .view-type-row, .side-card .slice-layer label, .side-card .grad-title, .sc-fold>summary b { color: #e7ecef; }
+  .sc-info, .sc-note, .fil-mat, .side-card .role-legend, .side-card .slice-travel, .sc-fold>summary { color: #9ca8ae; }
+  .side-card select, .side-card input:not([type="range"]):not([type="checkbox"]):not([type="color"]), .side-card .obj-ext { background: #14181b; color: #edf1f3; border-color: #3b454b; }
+  .obj-list2 li.obj-selected, .filament-row.fil-active { background: #29351f; box-shadow: inset 3px 0 #91c720; }
+  .slice-btn { background: #91c720; color: #142008; }
+  .export-btn { background: #2a3237; color: #dfe5e8; border-color: #3b454b; }
+  .empty-hint { display: none !important; }
   @media (max-width: 899px) {
     .app-shell { font-size: 12px; }
-    .topbar { height: 42px; flex-basis: 42px; padding: 0 7px; gap: 5px; }
-    .tb-logo, [data-testid="export-stl"] { display: none !important; }
-    [data-testid="open-file"], [data-testid="save-project"] { width: 34px; height: 32px; padding: 4px; justify-content: center; }
-    [data-testid="open-file"] span, [data-testid="save-project"] span { display: none; }
-    .tb-tabs button { padding: 6px 12px; font-size: 11px; }
-    .tb-icon { width: 30px; height: 30px; }
-    .topbar .tb-left, .topbar .tb-right { gap: 4px; }
-    .left-rail { flex-basis: 46px; width: 46px; padding-top: 54px; }
-    .left-rail button { width: 38px; height: 38px; }
-    .vp-top-toolbar { top: 8px; left: 8px; right: 8px; transform: none; max-width: none; justify-content: flex-start; }
-    .vp-top-toolbar button { width: 38px; height: 38px; }
-    .vp-top-toolbar button img { width: 20px; height: 20px; }
-    .plate-bar { right: 10px; bottom: 138px; }
-    .plate-bar button { min-width: 34px; height: 34px; }
-    .vp-status { bottom: 126px; left: 58px; right: 8px; font-size: 10px; }
-    .bed-warn, .stats-card { left: 56px; bottom: 168px; max-width: calc(100% - 70px); }
-    .brush-panel { top: 58px; left: 52px; width: min(250px, calc(100vw - 66px)); }
-    .sidebar { position: absolute; z-index: 14; top: 0; right: 0; bottom: 0; width: min(88vw, 390px); flex-basis: auto; box-shadow: -18px 0 44px rgba(0,0,0,.45); }
+    .topbar, .left-rail, .vp-top-toolbar { display: none !important; }
+    .plate-bar { right: 8px; bottom: 76px; padding: 4px; }
+    .plate-bar button { min-width: 36px; height: 36px; }
+    .vp-status { bottom: 72px; left: 9px; right: 58px; font-size: 10px; }
+    .bed-warn, .stats-card { left: 8px; bottom: 116px; max-width: calc(100% - 68px); }
+    .brush-panel { top: 8px; left: 8px; width: min(280px, calc(100vw - 16px)); }
+    .sidebar { position: absolute; z-index: 14; top: 0; right: 0; bottom: 62px; width: min(94vw, 420px); flex-basis: auto; box-shadow: -16px 0 34px #080a0b; }
     :host([data-levo-sidebar="closed"]) .sidebar { display: none; }
     :host([data-levo-sidebar="open"]) .sidebar { display: flex; }
-    .sidebar-scroll { padding-bottom: 88px; }
+    .sidebar-scroll { padding: 8px 8px 82px; }
     .side-bottom { position: absolute; left: 0; right: 0; bottom: 0; }
-    .help-card { max-width: calc(100vw - 24px); max-height: calc(100dvh - 120px); overflow: auto; }
+    .help-card { max-width: calc(100vw - 16px); max-height: calc(100dvh - 90px); overflow: auto; }
   }
   @media (min-width: 900px) {
     .sidebar { display: flex !important; }
@@ -169,6 +176,8 @@ const TEXT = {
     objects: "مجسم",
     plate: "Plate",
     add: "إضافة",
+    files: "الملفات",
+    tools: "الأدوات",
     move: "تحريك",
     rotate: "دوران",
     scale: "تكبير/تصغير",
@@ -185,6 +194,32 @@ const TEXT = {
     cancel: "إلغاء",
     save: "حفظ 3MF",
     download: "G-code",
+    print: "طباعة",
+    printExport: "الطباعة والتصدير",
+    printReady: "ملف الطباعة جاهز",
+    printReadyHelp: "تم إنشاء G-code للـPlate الحالية ويمكن تنزيله أو مشاركته.",
+    downloadGcode: "تنزيل ملف G-code",
+    shareFile: "مشاركة الملف",
+    shareUnavailable: "المشاركة غير مدعومة في هذا المتصفح؛ تم تنزيل الملف بدلًا منها.",
+    exportAll: "تنزيل ملفات كل Plates",
+    saveProject: "حفظ مشروع 3MF",
+    editTools: "أدوات المجسم",
+    editToolsHelp: "كل أوامر التحرير الأساسية بحجم مناسب للمس.",
+    undo: "تراجع",
+    redo: "إعادة",
+    split: "تقسيم",
+    onBed: "على Plate",
+    paint: "رسم الدعم",
+    deleteAll: "حذف الكل",
+    deleteAllConfirm: "حذف جميع المجسمات من Plate الحالية؟",
+    officialPrint: "المسار الرسمي للطابعة",
+    officialPrintHelp: "على الكمبيوتر: نزّل الملف ثم اسحبه إلى Bambu Connect أو Bambu Studio وأكمل اختيار الطابعة وAMS هناك.",
+    mobilePrintHelp: "على الهاتف: نزّل أو شارك الملف، ثم انقله إلى كمبيوتر Bambu Connect أو إلى USB/بطاقة ذاكرة مدعومة.",
+    openBambuGuide: "فتح دليل Bambu Connect",
+    printSafety: "راجع الطابعة، نوع Plate، الفوهة، الفلمنت وAMS قبل بدء أي طباعة.",
+    printNotReady: "قم بتقطيع Plate أولًا لإنشاء ملف الطباعة.",
+    imported: "تمت إضافة الملفات إلى المشروع.",
+    formats: "STL · OBJ · 3MF · AMF · PLY",
     quality: "الجودة",
     strength: "القوة",
     support: "الدعامات",
@@ -195,7 +230,7 @@ const TEXT = {
     advancedHelp: "تظهر داخل لوحة المحرر الكاملة.",
     close: "إغلاق",
     directPrint: "الطباعة المباشرة",
-    directPrintHelp: "ما زالت معطّلة حتى التحقق من حزمة Bambu والربط على طابعة حقيقية.",
+    directPrintHelp: "التصدير والطباعة عبر Bambu Connect مدعومان. الإرسال الشبكي المباشر من الهاتف يحتاج جسرًا محليًا معتمدًا من Bambu.",
     realEditor: "محرر Plate حقيقي",
     realEditorHelp: "تحريك، دوران، تكبير وتصغير، حذف، تكرار، تقسيم، Undo/Redo، دعم عدة Plates وحفظ 3MF.",
     layers: "طبقات",
@@ -217,6 +252,8 @@ const TEXT = {
     objects: "objects",
     plate: "Plate",
     add: "Add",
+    files: "Files",
+    tools: "Tools",
     move: "Move",
     rotate: "Rotate",
     scale: "Scale",
@@ -233,6 +270,32 @@ const TEXT = {
     cancel: "Cancel",
     save: "Save 3MF",
     download: "G-code",
+    print: "Print",
+    printExport: "Print & export",
+    printReady: "Print file ready",
+    printReadyHelp: "G-code for the current plate is ready to download or share.",
+    downloadGcode: "Download G-code",
+    shareFile: "Share file",
+    shareUnavailable: "File sharing is unavailable in this browser, so the file was downloaded instead.",
+    exportAll: "Download every plate",
+    saveProject: "Save 3MF project",
+    editTools: "Object tools",
+    editToolsHelp: "Core editing commands in touch-friendly sizes.",
+    undo: "Undo",
+    redo: "Redo",
+    split: "Split",
+    onBed: "Place on bed",
+    paint: "Support paint",
+    deleteAll: "Delete all",
+    deleteAllConfirm: "Delete every object on the current plate?",
+    officialPrint: "Official printer handoff",
+    officialPrintHelp: "On desktop, download the file, drop it into Bambu Connect or Bambu Studio, then confirm the printer and AMS there.",
+    mobilePrintHelp: "On mobile, download or share the file, then move it to a Bambu Connect computer or supported USB/memory card.",
+    openBambuGuide: "Open Bambu Connect guide",
+    printSafety: "Verify printer, plate, nozzle, filament and AMS before starting any print.",
+    printNotReady: "Slice the plate first to create a printable file.",
+    imported: "Files were added to the project.",
+    formats: "STL · OBJ · 3MF · AMF · PLY",
     quality: "Quality",
     strength: "Strength",
     support: "Support",
@@ -243,7 +306,7 @@ const TEXT = {
     advancedHelp: "Shown inside the complete editor panel.",
     close: "Close",
     directPrint: "Direct print",
-    directPrintHelp: "Still disabled until the Bambu package and real-printer connection are verified.",
+    directPrintHelp: "Export and printing through Bambu Connect are supported. Direct phone-to-printer networking needs an approved local Bambu bridge.",
     realEditor: "Real plate editor",
     realEditorHelp: "Move, rotate, scale, delete, duplicate, split, undo/redo, multi-plate editing and 3MF save.",
     layers: "layers",
@@ -255,9 +318,10 @@ const TEXT = {
   },
 } as const;
 
-function Icon({ name }: { name: "plus" | "move" | "rotate" | "scale" | "copy" | "trash" | "fit" | "bed" | "layers" | "slice" | "save" | "info" | "settings" | "close" }) {
+function Icon({ name }: { name: "plus" | "file" | "move" | "rotate" | "scale" | "copy" | "trash" | "fit" | "bed" | "layers" | "slice" | "print" | "save" | "share" | "undo" | "redo" | "split" | "paint" | "info" | "settings" | "close" | "check" | "external" }) {
   const paths = {
     plus: <><path d="M12 5v14"/><path d="M5 12h14"/></>,
+    file: <><path d="M5 3h9l5 5v13H5z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14h6"/></>,
     move: <><path d="M12 2v20"/><path d="m8 6 4-4 4 4"/><path d="m8 18 4 4 4-4"/><path d="M2 12h20"/><path d="m6 8-4 4 4 4"/><path d="m18 8 4 4-4 4"/></>,
     rotate: <><path d="M20 7v5h-5"/><path d="M18.5 16a8 8 0 1 1 .8-8.8L20 12"/></>,
     scale: <><path d="M8 3H3v5"/><path d="m3 3 7 7"/><path d="M16 21h5v-5"/><path d="m21 21-7-7"/></>,
@@ -267,10 +331,18 @@ function Icon({ name }: { name: "plus" | "move" | "rotate" | "scale" | "copy" | 
     bed: <><path d="M3 7h18v12H3z"/><path d="M7 3v4M17 3v4"/><path d="M7 11h10M7 15h6"/></>,
     layers: <><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></>,
     slice: <><path d="M4 6h16M4 12h16M4 18h16"/><path d="m8 3 8 18"/></>,
+    print: <><path d="M7 8V3h10v5"/><path d="M6 17H4v-7h16v7h-2"/><path d="M7 14h10v7H7z"/><path d="M17 11h.01"/></>,
     save: <><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3"/><path d="M8 15h8"/></>,
+    share: <><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.2M8.7 13.3l6.6 4.2"/></>,
+    undo: <><path d="M9 7 4 12l5 5"/><path d="M5 12h8a6 6 0 0 1 6 6"/></>,
+    redo: <><path d="m15 7 5 5-5 5"/><path d="M19 12h-8a6 6 0 0 0-6 6"/></>,
+    split: <><path d="M4 4h7v7H4zM13 13h7v7h-7z"/><path d="m11 11 2 2M14 6h4v4M10 18H6v-4"/></>,
+    paint: <><path d="m14 4 6 6-9 9H5v-6z"/><path d="m12 6 6 6M5 19c0 1-1 2-2 2"/></>,
     info: <><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></>,
     settings: <><path d="M4 7h10M18 7h2"/><circle cx="16" cy="7" r="2"/><path d="M4 17h2M10 17h10"/><circle cx="8" cy="17" r="2"/></>,
     close: <><path d="m6 6 12 12"/><path d="m18 6-12 12"/></>,
+    check: <><path d="m5 12 4 4L19 6"/></>,
+    external: <><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 13v7H4V6h7"/></>,
   };
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
@@ -325,24 +397,43 @@ async function loadVerifiedProfile(profile: PrinterProfile, quality: QualityId, 
   return { settings: combined, machine: lockedMachine, machineKeys: [...api.printerKeys, "printer_model", "printer_settings_id"] };
 }
 
-function validateFiles(files: File[], existingObjects: number) {
+function validateFiles(files: File[], existingObjects: number, locale: Locale) {
+  const ar = locale === "ar";
   const allowed = new Set(["stl", "obj", "3mf", "amf", "ply"]);
-  if (files.length > 12 || existingObjects + files.length > 24) return "A project can contain up to 24 imported files, with 12 added at once.";
+  if (files.length > 12 || existingObjects + files.length > 24) return ar
+    ? "يمكن أن يحتوي المشروع على 24 ملفًا كحد أقصى، مع إضافة 12 ملفًا في المرة."
+    : "A project can contain up to 24 imported files, with 12 added at once.";
   let total = 0;
   for (const file of files) {
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!allowed.has(extension)) return `Unsupported file: ${file.name}`;
-    if (!file.size) return `Empty file: ${file.name}`;
-    if (file.size > 80 * 1024 * 1024) return `${file.name} exceeds the 80 MB per-file limit.`;
+    if (!allowed.has(extension)) return ar ? `نوع الملف غير مدعوم: ${file.name}` : `Unsupported file: ${file.name}`;
+    if (!file.size) return ar ? `الملف فارغ: ${file.name}` : `Empty file: ${file.name}`;
+    if (file.size > 80 * 1024 * 1024) return ar
+      ? `${file.name} يتجاوز حد 80 MB للملف الواحد.`
+      : `${file.name} exceeds the 80 MB per-file limit.`;
     total += file.size;
   }
-  if (total > 160 * 1024 * 1024) return "The selected files exceed the 160 MB batch limit.";
+  if (total > 160 * 1024 * 1024) return ar
+    ? "الملفات المحددة تتجاوز حد 160 MB للدفعة."
+    : "The selected files exceed the 160 MB batch limit.";
   return null;
 }
 
 function findShadowHost(container: HTMLElement | null) {
   if (!container) return null;
   return Array.from(container.querySelectorAll<HTMLElement>("div")).find((element) => element.shadowRoot?.querySelector(".app-shell")) ?? null;
+}
+
+function downloadBlob(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = name;
+  anchor.style.display = "none";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
 export default function SlicerClient() {
@@ -364,6 +455,7 @@ export default function SlicerClient() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [toolTrayOpen, setToolTrayOpen] = useState(false);
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
@@ -466,7 +558,7 @@ export default function SlicerClient() {
       changeListener = (event) => {
         const input = event.target;
         if (!(input instanceof HTMLInputElement) || input.dataset.testid !== "stl-input" || !input.files) return;
-        const validationError = validateFiles(Array.from(input.files), objectCountRef.current);
+        const validationError = validateFiles(Array.from(input.files), objectCountRef.current, locale);
         if (!validationError) { setError(""); return; }
         event.stopImmediatePropagation();
         input.value = "";
@@ -477,7 +569,7 @@ export default function SlicerClient() {
         const dropEvent = event as DragEvent;
         const files = Array.from(dropEvent.dataTransfer?.files ?? []);
         if (!files.length) return;
-        const validationError = validateFiles(files, objectCountRef.current);
+        const validationError = validateFiles(files, objectCountRef.current, locale);
         if (!validationError) { setError(""); return; }
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -497,7 +589,7 @@ export default function SlicerClient() {
       detach();
       if (shadowHostRef.current && container.contains(shadowHostRef.current)) shadowHostRef.current = null;
     };
-  }, [Viewport, workspaceKey]);
+  }, [Viewport, locale, workspaceKey]);
 
   const clearGeneratedOutput = useCallback(() => {
     GCODE_ARTIFACTS.get(artifactId)?.clear();
@@ -546,6 +638,29 @@ export default function SlicerClient() {
     });
   }, [clickControl, t.actionUnavailable]);
 
+  const openFiles = useCallback(() => {
+    const root = viewportRoot();
+    const input = root?.querySelector<HTMLInputElement>('[data-testid="stl-input"]');
+    if (input) {
+      input.value = "";
+      input.click();
+      setNotice("");
+      setToolTrayOpen(false);
+      return;
+    }
+    if (!clickControl("open-file", true) && !clickControl("empty-pick", true)) setNotice(t.actionUnavailable);
+  }, [clickControl, t.actionUnavailable, viewportRoot]);
+
+  const runTool = useCallback((testId: string) => {
+    prepareAction(testId);
+    setToolTrayOpen(false);
+  }, [prepareAction]);
+
+  const deleteAll = useCallback(() => {
+    if (!objects.length || !window.confirm(t.deleteAllConfirm)) return;
+    runTool("tool-delete-all");
+  }, [objects.length, runTool, t.deleteAllConfirm]);
+
   const shortcut = useCallback((key: string) => {
     const shell = viewportRoot()?.querySelector<HTMLElement>(".app-shell");
     if (!shell) { setNotice(t.actionUnavailable); return; }
@@ -564,6 +679,51 @@ export default function SlicerClient() {
     });
   }, [plateCount, status, t.actionUnavailable, viewportRoot]);
 
+  const currentGcode = useCallback(() => GCODE_ARTIFACTS.get(artifactId)?.get(selectedPlate) ?? "", [artifactId, selectedPlate]);
+
+  const currentGcodeFile = useCallback(() => {
+    const gcode = currentGcode();
+    if (!gcode) return null;
+    const name = `LEVO-${profile.shortName}-plate-${selectedPlate + 1}.gcode`;
+    return new File([gcode], name, { type: "text/x-gcode" });
+  }, [currentGcode, profile.shortName, selectedPlate]);
+
+  const downloadCurrentGcode = useCallback(() => {
+    const file = currentGcodeFile();
+    if (!file) { setNotice(t.printNotReady); return false; }
+    downloadBlob(file, file.name);
+    setNotice("");
+    return true;
+  }, [currentGcodeFile, t.printNotReady]);
+
+  const shareCurrentGcode = useCallback(async () => {
+    const file = currentGcodeFile();
+    if (!file) { setNotice(t.printNotReady); return; }
+    const data: ShareData = { files: [file], title: file.name };
+    if (typeof navigator.share === "function" && (!navigator.canShare || navigator.canShare(data))) {
+      try {
+        await navigator.share(data);
+        return;
+      } catch (reason: unknown) {
+        if (reason instanceof DOMException && reason.name === "AbortError") return;
+      }
+    }
+    downloadBlob(file, file.name);
+    setNotice(t.shareUnavailable);
+  }, [currentGcodeFile, t.printNotReady, t.shareUnavailable]);
+
+  const openPrintCenter = useCallback(() => {
+    if (status !== "ready" || !currentGcode()) { setNotice(t.printNotReady); return; }
+    setToolTrayOpen(false);
+    setSidebarOpen(false);
+    setSheet("print");
+  }, [currentGcode, status, t.printNotReady]);
+
+  const primaryAction = useCallback(() => {
+    if (status === "ready" && currentGcode()) openPrintCenter();
+    else triggerSlice(false);
+  }, [currentGcode, openPrintCenter, status, triggerSlice]);
+
   const handleEvent = useCallback((event: ViewportEvent) => {
     if (event.type === "objects") {
       setObjects(event.value);
@@ -574,6 +734,7 @@ export default function SlicerClient() {
       setSelectedPlate(event.value);
     } else if (event.type === "canvasMode") {
       setCanvasMode(event.value);
+      if (event.value === "preview") setToolTrayOpen(false);
     } else if (event.type === "slicing") {
       setStatus(event.value ? "slicing" : "editing");
       if (!event.value) setProgress(0);
@@ -618,6 +779,8 @@ export default function SlicerClient() {
     setNotice("");
     setError("");
     setSidebarOpen(false);
+    setToolTrayOpen(false);
+    setSheet(null);
     setStatus("editing");
     setWorkspaceKey((value) => value + 1);
   }, [artifactId, objects.length, t.newConfirm]);
@@ -635,6 +798,9 @@ export default function SlicerClient() {
   )) : null, [SettingsPanel]);
 
   const statusLabel = status === "slicing" ? `${Math.round(progress * 100)}%` : status === "ready" ? `${layerCount || "✓"} ${t.layers}` : t.local;
+  const printReady = status === "ready" && Boolean(currentGcode());
+  const slicedPlateCount = GCODE_ARTIFACTS.get(artifactId)?.size ?? 0;
+  const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : t.settings;
 
   return (
     <main className="studio-app" dir={locale === "ar" ? "rtl" : "ltr"}>
@@ -646,7 +812,9 @@ export default function SlicerClient() {
         </div>
         <div className="studio-status" data-status={status}><i/><span>{profileLoading ? t.profileLoading : statusLabel}</span></div>
         <div className="studio-actions">
-          <button onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
+          <button className="import-action" onClick={openFiles} title={t.files}><Icon name="file"/><span>{t.files}</span></button>
+          <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
+          {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
           <button className={`panel-button ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen((value) => !value)} aria-label={t.panel}><Icon name="layers"/></button>
           <button onClick={() => setSheet("about")} aria-label={t.about}><Icon name="info"/></button>
@@ -675,40 +843,56 @@ export default function SlicerClient() {
           )}
         </div>
 
+        {Viewport && !objects.length && status !== "error" && <section className="empty-upload-card" aria-label={t.files}>
+          <span className="empty-upload-icon"><Icon name="file"/></span>
+          <strong>{t.files}</strong>
+          <p>{t.formats}</p>
+          <button onClick={openFiles}><Icon name="plus"/><span>{t.add}</span></button>
+          <small>{t.fileLimit}</small>
+        </section>}
+
         {(error || notice) && <div className={`editor-message ${error ? "error" : "notice"}`} role={error ? "alert" : "status"}>
           <span>{error || notice}</span><button onClick={() => { setError(""); setNotice(""); if (status === "error") setStatus("editing"); }} aria-label={t.close}><Icon name="close"/></button>
         </div>}
 
-        <nav className="mobile-toolstrip" aria-label="Object tools">
-          <button onClick={() => prepareAction("tool-add")}><Icon name="plus"/><span>{t.add}</span></button>
-          <button onClick={() => prepareAction("gizmo-move")}><Icon name="move"/><span>{t.move}</span></button>
-          <button onClick={() => prepareAction("gizmo-rotate")}><Icon name="rotate"/><span>{t.rotate}</span></button>
-          <button onClick={() => prepareAction("gizmo-scale")}><Icon name="scale"/><span>{t.scale}</span></button>
-          <button onClick={() => prepareAction("tool-duplicate")}><Icon name="copy"/><span>{t.duplicate}</span></button>
-          <button className="danger" onClick={() => prepareAction("tool-delete")}><Icon name="trash"/><span>{t.remove}</span></button>
-          <button onClick={() => shortcut("z")}><Icon name="fit"/><span>{t.fit}</span></button>
-          <button onClick={() => shortcut("b")}><Icon name="bed"/><span>{t.bed}</span></button>
-          <button onClick={() => clickControl("plate-add")}><Icon name="layers"/><span>{t.addPlate}</span></button>
-        </nav>
+        {toolTrayOpen && <section className="mobile-tooltray" aria-label={t.editTools}>
+          <header><span><strong>{t.editTools}</strong><small>{t.editToolsHelp}</small></span><button onClick={() => setToolTrayOpen(false)} aria-label={t.close}><Icon name="close"/></button></header>
+          <div className="mobile-toolgrid">
+            <button onClick={openFiles}><Icon name="file"/><span>{t.add}</span></button>
+            <button onClick={() => runTool("gizmo-move")}><Icon name="move"/><span>{t.move}</span></button>
+            <button onClick={() => runTool("gizmo-rotate")}><Icon name="rotate"/><span>{t.rotate}</span></button>
+            <button onClick={() => runTool("gizmo-scale")}><Icon name="scale"/><span>{t.scale}</span></button>
+            <button onClick={() => runTool("tool-duplicate")}><Icon name="copy"/><span>{t.duplicate}</span></button>
+            <button className="danger" onClick={() => runTool("tool-delete")}><Icon name="trash"/><span>{t.remove}</span></button>
+            <button onClick={() => runTool("tool-split")}><Icon name="split"/><span>{t.split}</span></button>
+            <button onClick={() => runTool("tool-onbed")}><Icon name="bed"/><span>{t.onBed}</span></button>
+            <button onClick={() => runTool("gizmo-paint")}><Icon name="paint"/><span>{t.paint}</span></button>
+            <button onClick={() => { shortcut("z"); setToolTrayOpen(false); }}><Icon name="fit"/><span>{t.fit}</span></button>
+            <button onClick={() => { shortcut("b"); setToolTrayOpen(false); }}><Icon name="bed"/><span>{t.bed}</span></button>
+            <button onClick={() => { clickControl("undo"); setToolTrayOpen(false); }}><Icon name="undo"/><span>{t.undo}</span></button>
+            <button onClick={() => { clickControl("redo"); setToolTrayOpen(false); }}><Icon name="redo"/><span>{t.redo}</span></button>
+            <button onClick={() => { clickControl("plate-add"); setToolTrayOpen(false); }}><Icon name="layers"/><span>{t.addPlate}</span></button>
+            <button onClick={() => { clickControl("save-project"); setToolTrayOpen(false); }}><Icon name="save"/><span>{t.save}</span></button>
+            {plateCount > 1 && <button onClick={() => { triggerSlice(true); setToolTrayOpen(false); }}><Icon name="slice"/><span>{t.sliceAll}</span></button>}
+            <button className="danger" onClick={deleteAll}><Icon name="trash"/><span>{t.deleteAll}</span></button>
+          </div>
+        </section>}
 
         <div className="mobile-primarybar">
-          <div className="mode-switch" role="tablist">
-            <button className={canvasMode === "prepare" ? "active" : ""} onClick={() => clickControl("mode-prepare")} role="tab">{t.prepare}</button>
-            <button className={canvasMode === "preview" ? "active" : ""} onClick={() => clickControl("mode-preview")} role="tab">{t.preview}</button>
-          </div>
-          <button className="mobile-save" onClick={() => clickControl("save-project")} aria-label={t.save}><Icon name="save"/></button>
-          <button className={`mobile-slice ${status === "slicing" ? "cancel" : ""}`} onClick={() => triggerSlice(false)} disabled={!objects.length}>
-            <Icon name="slice"/><span>{status === "slicing" ? `${t.cancel} ${Math.round(progress * 100)}%` : t.slice}</span>
+          <button className="mobile-nav-item" onClick={openFiles}><Icon name="file"/><span>{t.files}</span></button>
+          <button className={`mobile-nav-item ${toolTrayOpen ? "active" : ""}`} onClick={() => { setSidebarOpen(false); setToolTrayOpen((value) => !value); }} aria-expanded={toolTrayOpen}><Icon name="move"/><span>{t.tools}</span></button>
+          <button className={`mobile-primary-action ${status === "slicing" ? "cancel" : ""} ${printReady ? "ready" : ""}`} onClick={primaryAction} disabled={!objects.length}>
+            <Icon name={printReady ? "print" : "slice"}/><span>{status === "slicing" ? `${t.cancel} ${Math.round(progress * 100)}%` : printReady ? t.print : t.slice}</span>
           </button>
-          {plateCount > 1 && <button className="mobile-slice-all" onClick={() => triggerSlice(true)} disabled={!objects.length || status === "slicing"}>{t.sliceAll}</button>}
-          <button className="mobile-panel" onClick={() => setSidebarOpen((value) => !value)} aria-label={t.panel}><Icon name="settings"/></button>
+          <button className={`mobile-nav-item ${canvasMode === "preview" ? "active" : ""}`} onClick={() => clickControl(canvasMode === "preview" ? "mode-prepare" : "mode-preview")} disabled={!objects.length}><Icon name="layers"/><span>{canvasMode === "preview" ? t.prepare : t.preview}</span></button>
+          <button className={`mobile-nav-item ${sidebarOpen ? "active" : ""}`} onClick={() => { setToolTrayOpen(false); setSidebarOpen((value) => !value); }}><Icon name="settings"/><span>{t.settings}</span></button>
         </div>
       </section>
 
       {sheet && <div className="sheet-backdrop" onPointerDown={(event) => { if (event.target === event.currentTarget) setSheet(null); }}>
-        <section className="studio-sheet" role="dialog" aria-modal="true" aria-label={sheet === "about" ? t.about : t.settings}>
+        <section className="studio-sheet" role="dialog" aria-modal="true" aria-label={sheetTitle}>
           <div className="sheet-handle"/>
-          <header><div><strong>{sheet === "about" ? t.about : t.settings}</strong><span>{profile.shortName} · {profile.nozzle.toFixed(1)} mm · PLA</span></div><button onClick={() => setSheet(null)} aria-label={t.close}><Icon name="close"/></button></header>
+          <header><div><strong>{sheetTitle}</strong><span>{profile.shortName} · {profile.nozzle.toFixed(1)} mm · PLA</span></div><button onClick={() => setSheet(null)} aria-label={t.close}><Icon name="close"/></button></header>
 
           {sheet === "setup" ? <div className="sheet-body setup-body">
             <fieldset><legend>{t.printer}</legend><div className="profile-grid">
@@ -724,10 +908,24 @@ export default function SlicerClient() {
             <button className="advanced-button" onClick={() => { setSheet(null); setSidebarOpen(true); }}><span><Icon name="settings"/><b>{t.advanced}</b><small>{t.advancedHelp}</small></span><Icon name="layers"/></button>
             <p className="file-limit">{t.fileLimit}</p>
             <button className="sheet-done" onClick={() => setSheet(null)}>{t.apply}</button>
+          </div> : sheet === "print" ? <div className="sheet-body print-body">
+            <div className="print-ready-card"><span><Icon name="check"/></span><div><strong>{t.printReady}</strong><small>{t.printReadyHelp}</small></div></div>
+            <div className="print-action-grid">
+              <button className="print-download" onClick={downloadCurrentGcode}><Icon name="file"/><span><b>{t.downloadGcode}</b><small>{profile.shortName} · {t.plate} {selectedPlate + 1}</small></span></button>
+              <button onClick={() => void shareCurrentGcode()}><Icon name="share"/><span><b>{t.shareFile}</b><small>{t.download}</small></span></button>
+              <button onClick={() => clickControl("save-project")}><Icon name="save"/><span><b>{t.saveProject}</b><small>{objects.length} {t.objects}</small></span></button>
+              {slicedPlateCount > 1 && <button onClick={() => clickControl("export-all")}><Icon name="layers"/><span><b>{t.exportAll}</b><small>{slicedPlateCount} {t.plate}</small></span></button>}
+            </div>
+            <div className="print-handoff">
+              <span className="handoff-icon"><Icon name="print"/></span>
+              <div><strong>{t.officialPrint}</strong><p>{t.officialPrintHelp}</p><p>{t.mobilePrintHelp}</p></div>
+              <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noreferrer"><span>{t.openBambuGuide}</span><Icon name="external"/></a>
+            </div>
+            <p className="print-safety"><Icon name="info"/><span>{t.printSafety}</span></p>
           </div> : <div className="sheet-body about-body">
             <div className="capability verified"><i/><span><strong>{t.realEditor}</strong><small>{t.realEditorHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
-            <div className="capability disabled"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
+            <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <a href="https://github.com/aliamer229/Levo_slicer" target="_blank" rel="noreferrer">GitHub · AGPL source</a>
           </div>}
         </section>

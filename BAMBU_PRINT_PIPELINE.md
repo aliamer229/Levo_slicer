@@ -1,6 +1,13 @@
 # Bambu print pipeline
 
-Direct print is intentionally disabled. A safe implementation cannot treat raw G-code as a drop-in printer job.
+LEVO supports an explicit, user-controlled print handoff today: slice locally, download or share the actual `.gcode`, then open/transfer it to Bambu Connect or Bambu Studio and verify the real printer state there. On phones, the supported handoff is share/download to a Bambu Connect computer or a printer-supported removable-storage path.
+
+Direct browser-to-printer networking is intentionally disabled. A safe implementation cannot treat raw G-code as a drop-in printer job, claim a printer is connected without live evidence, or assume that a browser knows the downloaded file's absolute desktop path.
+
+Official references:
+
+- [Bambu Connect](https://wiki.bambulab.com/en/software/bambu-connect)
+- [Bambu third-party integration](https://wiki.bambulab.com/en/software/third-party-integration)
 
 ## Required gated pipeline
 
@@ -31,4 +38,4 @@ Direct print is intentionally disabled. A safe implementation cannot treat raw G
 - Verified upload, start, cancellation, reconnect, and error-state behavior.
 - A documented firmware/authorization compatibility matrix.
 
-Until all gates pass, the product must remain at raw G-code preview/download.
+Until all gates pass, the product remains at real G-code preview/download/share plus the official user-confirmed Bambu Connect/Studio handoff. It must not expose a direct-network button that can report success without the target printer's acknowledgement.
