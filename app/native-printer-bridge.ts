@@ -72,12 +72,26 @@ export interface LevoPrinterPlugin {
   cancelPrintJob(options: { transferId: string }): Promise<void>;
 }
 
+export interface LevoUpdateStatus {
+  currentVersionCode: number;
+  currentVersionName: string;
+  latestVersionCode: number;
+  latestVersionName: string;
+  sizeBytes: number;
+  available: boolean;
+}
+
+export interface LevoUpdaterPlugin {
+  checkForUpdate(): Promise<LevoUpdateStatus>;
+  installUpdate(): Promise<{ installerOpened: boolean }>;
+}
+
 declare global {
   interface Window {
     Capacitor?: {
       getPlatform?: () => string;
       isNativePlatform?: () => boolean;
-      Plugins?: { LevoPrinter?: LevoPrinterPlugin };
+      Plugins?: { LevoPrinter?: LevoPrinterPlugin; LevoUpdater?: LevoUpdaterPlugin };
     };
   }
 }
@@ -162,6 +176,18 @@ export async function disconnectNativePrinter() {
 
 export async function getNativePrinterStatus() {
   return requirePlugin().getStatus();
+}
+
+export async function checkForNativeUpdate() {
+  const updater = window.Capacitor?.Plugins?.LevoUpdater;
+  if (!updater) return null;
+  return updater.checkForUpdate();
+}
+
+export async function installNativeUpdate() {
+  const updater = window.Capacitor?.Plugins?.LevoUpdater;
+  if (!updater) throw new LevoBridgeUnavailableError();
+  return updater.installUpdate();
 }
 
 async function sha256(file: Blob) {
