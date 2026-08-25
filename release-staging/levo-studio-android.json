@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "LEVO Studio",
+  "owner": "LEVONIS",
+  "platform": "Android",
+  "packageId": "iq.levo.studio",
+  "versionName": "1.1.0",
+  "versionCode": 2,
+  "channel": "production",
+  "file": "LEVO-Studio-Android-v1.1.0.apk",
+  "sizeBytes": 10190639,
+  "sha256": "961f2b236dbb613464bef3a32514c5cf8920116718975ab99cad0f8a68c9515c",
+  "signatureScheme": "APK Signature Scheme v2/v3",
+  "signerCertificateSha256": "7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1",
+  "downloadUrl": "https://github.com/aliamer229/Levo_slicer/releases/download/v1.1.0/LEVO-Studio-Android-v1.1.0.apk",
+  "builtAt": "2026-08-25T04:23:59Z",
+  "copyright": "Copyright © 2026 LEVONIS. Open-source components retain their respective licenses."
+}
