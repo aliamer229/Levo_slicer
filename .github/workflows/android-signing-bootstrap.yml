@@ -51,11 +51,12 @@ jobs:
         run: |
           set -euo pipefail
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          mkdir -p levo-signing-bootstrap/lib
+          mkdir -p levo-signing-bootstrap/lib levo-signing-bootstrap/lib64
           cp mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk levo-signing-bootstrap/LEVO-Studio-Android-v1.1.0-unsigned.apk
           cp "$BUILD_TOOLS/apksigner" levo-signing-bootstrap/apksigner
           cp "$BUILD_TOOLS/zipalign" levo-signing-bootstrap/zipalign
           cp "$BUILD_TOOLS/lib/apksigner.jar" levo-signing-bootstrap/lib/apksigner.jar
+          cp "$BUILD_TOOLS/lib64/libc++.so" levo-signing-bootstrap/lib64/libc++.so
           chmod +x levo-signing-bootstrap/apksigner levo-signing-bootstrap/zipalign
 
       - name: Upload one-time bootstrap artifact
