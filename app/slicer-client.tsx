@@ -243,12 +243,12 @@ const TEXT = {
     appBridgeReady: "جسر الطابعة المحلي جاهز",
     appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
     downloadAndroid: "تحميل تطبيق LEVO Studio",
-    downloadAndroidHelp: "APK لأجهزة Android · الإصدار 1.0.0",
+    downloadAndroidHelp: "APK لأجهزة Android · الإصدار 1.0.0 · 25 MB",
     installAndroid: "تنزيل APK",
     levonisRights: "© 2026 LEVONIS — جميع حقوق LEVO Studio محفوظة، مع بقاء حقوق المكتبات مفتوحة المصدر لأصحابها.",
     printerIp: "عنوان IP للطابعة",
     printerAccessCode: "Access Code",
-    printerSerial: "الرقم التسلسلي (اختياري)",
+    printerSerial: "الرقم التسلسلي للطابعة",
     rememberPrinter: "حفظ الطابعة بأمان داخل التطبيق",
     discoverPrinters: "البحث عن الطابعات",
     discoveringPrinters: "جارٍ البحث…",
@@ -390,12 +390,12 @@ const TEXT = {
     appBridgeReady: "Local printer bridge ready",
     appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
     downloadAndroid: "Download LEVO Studio",
-    downloadAndroidHelp: "Android APK · version 1.0.0",
+    downloadAndroidHelp: "Android APK · version 1.0.0 · 25 MB",
     installAndroid: "Download APK",
     levonisRights: "© 2026 LEVONIS — LEVO Studio rights reserved; open-source components remain under their respective licenses.",
     printerIp: "Printer IP address",
     printerAccessCode: "Access Code",
-    printerSerial: "Serial number (optional)",
+    printerSerial: "Printer serial number",
     rememberPrinter: "Store printer securely in the app",
     discoverPrinters: "Find printers",
     discoveringPrinters: "Searching…",
@@ -711,7 +711,6 @@ export default function SlicerClient() {
   const [lanIp, setLanIp] = useState("");
   const [lanAccessCode, setLanAccessCode] = useState("");
   const [lanSerial, setLanSerial] = useState("");
-  const [rememberPrinter, setRememberPrinter] = useState(true);
   const [discoveredPrinters, setDiscoveredPrinters] = useState<LevoDiscoveredPrinter[]>([]);
   const [printerStatus, setPrinterStatus] = useState<LevoPrinterStatus>({ connected: false });
   const [lanMessage, setLanMessage] = useState("");
@@ -1058,7 +1057,7 @@ export default function SlicerClient() {
         ip: lanIp,
         accessCode: lanAccessCode,
         serial: lanSerial.trim() || undefined,
-        remember: rememberPrinter,
+        remember: false,
       });
       setPrinterStatus(connected);
       if (connected.connected) {
@@ -1071,7 +1070,7 @@ export default function SlicerClient() {
     } finally {
       setLanAction("idle");
     }
-  }, [lanAccessCode, lanAction, lanIp, lanSerial, nativeEnvironment.capabilities.lanConnection, rememberPrinter, t.actionUnavailable, t.connectedPrinter]);
+  }, [lanAccessCode, lanAction, lanIp, lanSerial, nativeEnvironment.capabilities.lanConnection, t.actionUnavailable, t.connectedPrinter]);
 
   const disconnectLan = useCallback(async () => {
     if (lanAction !== "idle") return;
@@ -1560,8 +1559,7 @@ export default function SlicerClient() {
                 {!printerStatus.connected ? <form className="lan-connection-form" onSubmit={(event) => { event.preventDefault(); void connectLan(); }}>
                   <label><span>{t.printerIp}</span><input dir="ltr" inputMode="decimal" autoCapitalize="none" autoCorrect="off" value={lanIp} onChange={(event) => setLanIp(event.target.value)} placeholder="192.168.1.120" required/></label>
                   <label><span>{t.printerAccessCode}</span><input dir="ltr" type="password" value={lanAccessCode} onChange={(event) => setLanAccessCode(event.target.value)} autoComplete="off" required/></label>
-                  <label><span>{t.printerSerial}</span><input dir="ltr" autoCapitalize="characters" autoCorrect="off" value={lanSerial} onChange={(event) => setLanSerial(event.target.value)} /></label>
-                  <label className="remember-printer"><input type="checkbox" checked={rememberPrinter} onChange={(event) => setRememberPrinter(event.target.checked)}/><span>{t.rememberPrinter}</span></label>
+                  <label><span>{t.printerSerial}</span><input dir="ltr" autoCapitalize="characters" autoCorrect="off" value={lanSerial} onChange={(event) => setLanSerial(event.target.value)} required/></label>
                   <button className="connect-lan-button" type="submit" disabled={lanAction !== "idle"}><Icon name="print"/><span>{lanAction === "connecting" ? t.connectingLan : t.connectLan}</span></button>
                 </form> : <div className="connected-printer-card">
                   <span><Icon name="check"/></span>
