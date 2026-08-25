@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
@@ -15,7 +16,12 @@ const mobileMainUrl = new URL("../mobile/src/main.tsx", import.meta.url);
 const iosPluginUrl = new URL("../mobile/ios/App/App/AppDelegate.swift", import.meta.url);
 const iosPlistUrl = new URL("../mobile/ios/App/App/Info.plist", import.meta.url);
 const androidPluginUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/LevoPrinterPlugin.java", import.meta.url);
+const androidUpdaterUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/LevoUpdaterPlugin.java", import.meta.url);
 const androidActivityUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/MainActivity.java", import.meta.url);
+const androidManifestUrl = new URL("../mobile/android/app/src/main/AndroidManifest.xml", import.meta.url);
+const androidStringsUrl = new URL("../mobile/android/app/src/main/res/values/strings.xml", import.meta.url);
+const apkUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.0.0.apk", import.meta.url);
+const apkChecksumUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.0.0.apk.sha256", import.meta.url);
 
 test("mobile and desktop controls target real editor actions", async () => {
   const [app, engine] = await Promise.all([
@@ -216,4 +222,45 @@ test("local printer addresses are restricted to private LAN ranges", async () =>
   for (const address of ["8.8.8.8", "172.32.0.1", "127.0.0.1", "example.com", "192.168.1.999"]) {
     assert.equal(bridge.isPrivatePrinterAddress(address), false, `${address} should be rejected`);
   }
+});
+
+test("Android updates are in-place, origin-locked, and checksum-verified", async () => {
+  const [app, bridge, updater, activity, manifest] = await Promise.all([
+    readFile(appUrl, "utf8"),
+    readFile(bridgeUrl, "utf8"),
+    readFile(androidUpdaterUrl, "utf8"),
+    readFile(androidActivityUrl, "utf8"),
+    readFile(androidManifestUrl, "utf8"),
+  ]);
+
+  assert.match(app, /checkForNativeUpdate/);
+  assert.match(app, /installNativeUpdate/);
+  assert.match(app, /legal-details/);
+  assert.match(bridge, /LevoUpdater/);
+  assert.match(activity, /registerPlugin\(LevoUpdaterPlugin\.class\)/);
+  assert.match(manifest, /REQUEST_INSTALL_PACKAGES/);
+  assert.match(updater, /https:\/\/levo-web-slicer\.aliamer59409\.chatgpt\.site/);
+  assert.match(updater, /Untrusted update origin/);
+  assert.match(updater, /SHA-256/);
+  assert.match(updater, /FileProvider\.getUriForFile/);
+  assert.doesNotMatch(updater, /setInstanceFollowRedirects\(true\)/);
+});
+
+test("downloadable Android APK is branded and checksum-verified", async () => {
+  const [apk, checksumFile, manifest, strings] = await Promise.all([
+    readFile(apkUrl),
+    readFile(apkChecksumUrl, "utf8"),
+    readFile(androidManifestUrl, "utf8"),
+    readFile(androidStringsUrl, "utf8"),
+  ]);
+  const expected = checksumFile.trim().split(/\s+/)[0];
+  const actual = createHash("sha256").update(apk).digest("hex");
+
+  assert.deepEqual([...apk.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
+  assert.equal(actual, expected);
+  assert.ok(apk.byteLength > 20_000_000);
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.match(manifest, /android:usesCleartextTraffic="false"/);
+  assert.match(strings, /<string name="app_name">LEVO Studio<\/string>/);
+  assert.match(strings, /2026 LEVONIS/);
 });
