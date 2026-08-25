@@ -221,6 +221,8 @@ const TEXT = {
     noProjects: "لا توجد مشاريع محفوظة بعد.",
     printer: "الطابعة",
     settings: "الإعدادات",
+    signIn: "تسجيل الدخول",
+    signOut: "تسجيل الخروج",
     about: "حالة المنصة",
     loading: "جارٍ تحميل محرك التحرير…",
     profileLoading: "تطبيق ملف Orca الأصلي…",
@@ -381,6 +383,8 @@ const TEXT = {
     noProjects: "No saved projects yet.",
     printer: "Printer",
     settings: "Settings",
+    signIn: "Sign in",
+    signOut: "Sign out",
     about: "Platform status",
     loading: "Loading the editing engine…",
     profileLoading: "Applying the original Orca profile…",
@@ -709,7 +713,7 @@ function downloadBlob(blob: Blob, name: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }
 
-export default function SlicerClient() {
+export default function SlicerClient({ user = null }: { user?: { displayName: string; email: string } | null }) {
   const [locale, setLocale] = useState<Locale>("ar");
   const [sheet, setSheet] = useState<Sheet>(null);
   const [profileId, setProfileId] = useState<ProfileId>("bbl-x2d-04");
@@ -1512,6 +1516,7 @@ export default function SlicerClient() {
           {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
+          {!nativeEnvironment.native && (user ? <a href="/signout-with-chatgpt?return_to=%2F" title={user.email}><Icon name="check"/><span>{t.signOut}</span></a> : <a href="/signin-with-chatgpt?return_to=%2F"><Icon name="info"/><span>{t.signIn}</span></a>)}
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
           <button className={`panel-button ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen((value) => !value)} aria-label={t.panel}><Icon name="layers"/></button>
           <button onClick={() => setSheet("about")} aria-label={t.about}><Icon name="info"/></button>
