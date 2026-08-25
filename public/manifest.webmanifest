@@ -1,7 +1,7 @@
 {
   "name": "LEVO Studio",
   "short_name": "LEVO Studio",
-  "description": "Mobile-first local plate editing, slicing, G-code export, and Bambu print handoff.",
+  "description": "Shared web and mobile plate editing, local slicing, G-code export, and capability-gated Bambu print connections.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1114",

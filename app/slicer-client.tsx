@@ -7,6 +7,17 @@ import type { SettingsPanelProps } from "three-slicer/components";
 import type { ViewportEvent, ViewportProps } from "three-slicer/viewer";
 import { FILE_PICKER_ACCEPT, extractModelArchive, fileExtension, normalizeModelFile } from "./archive-import";
 import { registerExtendedModelLoaders } from "./model-loaders";
+import {
+  connectNativePrinter,
+  detectNativePrinterEnvironment,
+  discoverNativePrinters,
+  disconnectNativePrinter,
+  getNativePrinterStatus,
+  sendNativePrintJob,
+  type LevoDiscoveredPrinter,
+  type LevoNativeEnvironment,
+  type LevoPrinterStatus,
+} from "./native-printer-bridge";
 import { packModelsAcrossPlates } from "./plate-packing";
 
 type Locale = "ar" | "en";
@@ -16,6 +27,8 @@ type QualityId = "fine" | "standard" | "draft";
 type StrengthId = "light" | "standard" | "strong";
 type EditorStatus = "loading" | "editing" | "slicing" | "ready" | "error";
 type CanvasMode = "prepare" | "preview";
+type ConnectionMode = "lan" | "cloud" | "usb";
+type LanAction = "idle" | "discovering" | "connecting" | "transferring";
 
 interface PrinterProfile {
   id: ProfileId;
@@ -218,7 +231,45 @@ const TEXT = {
     download: "G-code",
     print: "طباعة",
     connectPrinter: "ربط الطابعة",
-    connectTitle: "ربط Bambu Lab الرسمي",
+    connectTitle: "طرق ربط الطابعة",
+    connectionIntro: "اختر الاتصال المحلي، Bambu Cloud أو USB. يعرض LEVO فقط الإمكانات المتاحة فعليًا على جهازك.",
+    lanMethod: "نفس شبكة Wi‑Fi",
+    cloudMethod: "السحابة",
+    usbMethod: "USB",
+    lanTitle: "الاتصال المحلي عبر IP",
+    lanHelp: "يعمل من تطبيق LEVO عندما يكون الهاتف والطابعة على الشبكة نفسها وبعد تفعيل LAN Only وDeveloper Mode.",
+    appDetected: "تم اكتشاف تطبيق LEVO",
+    websiteDetected: "أنت تستخدم موقع LEVO",
+    appBridgeReady: "جسر الطابعة المحلي جاهز",
+    appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
+    printerIp: "عنوان IP للطابعة",
+    printerAccessCode: "Access Code",
+    printerSerial: "الرقم التسلسلي (اختياري)",
+    rememberPrinter: "حفظ الطابعة بأمان داخل التطبيق",
+    discoverPrinters: "البحث عن الطابعات",
+    discoveringPrinters: "جارٍ البحث…",
+    connectLan: "اتصال آمن",
+    connectingLan: "جارٍ الاتصال…",
+    disconnectLan: "قطع الاتصال",
+    noPrintersFound: "لم يعثر التطبيق على طابعة. أدخل IP وAccess Code يدويًا.",
+    connectedPrinter: "متصل",
+    selectDiscoveredPrinter: "اختيار هذه الطابعة",
+    lanSecurity: "لا تُحفظ بيانات الطابعة في الموقع أو المتصفح. عند اختيار الحفظ، يخزنها التطبيق داخل Keychain/Keystore فقط.",
+    lanRequirements: "فعّل LAN Only ثم Developer Mode من شاشة X2D، واسمح لتطبيق LEVO بالوصول إلى الشبكة المحلية.",
+    lanUnavailableWeb: "الاتصال المحلي غير مدعوم من Safari. افتح المشروع نفسه داخل تطبيق LEVO لاستخدام IP.",
+    lanBridgeIncomplete: "التطبيق موجود، لكن إصدار جسر الطابعة لا يتيح الاتصال بعد.",
+    sendLanPrint: "إرسال وبدء الطباعة",
+    sendingLanPrint: "جارٍ نقل ملف الطباعة…",
+    lanPrintQueued: "استلمت الطابعة المهمة وأكد التطبيق إدراجها للطباعة.",
+    cloudTitle: "Bambu Cloud من الهاتف",
+    cloudHelp: "صدّر مشروع 3MF، ارفعه Private إلى MakerWorld، ثم أكمل اختيار الطابعة وAMS داخل Bambu Handy.",
+    usbTitle: "الطباعة من ذاكرة USB",
+    usbHelp: "نزّل ملف Plate بعد التقطيع، انقله إلى ذاكرة USB بنظام FAT32 أو exFAT، ثم ابدأه من شاشة X2D.",
+    usbStepOne: "نزّل ملف Plate إلى تطبيق الملفات.",
+    usbStepTwo: "انسخه إلى ذاكرة USB باستخدام محول الهاتف.",
+    usbStepThree: "أدخل الذاكرة في X2D وراجع الملف من شاشة الطابعة.",
+    downloadForUsb: "تنزيل ملف USB",
+    usbCompatibility: "ملف G-code الخام متاح الآن؛ حزمة Bambu .gcode.3mf ستبقى محجوبة حتى ينجح فحصها على X2D حقيقية.",
     notConnected: "غير متصل",
     partnerRequired: "يتطلب اعتماد Bambu Lab",
     connectStatus: "الربط السحابي المباشر مقيد رسميًا",
@@ -323,7 +374,45 @@ const TEXT = {
     download: "G-code",
     print: "Print",
     connectPrinter: "Connect printer",
-    connectTitle: "Official Bambu Lab connection",
+    connectTitle: "Printer connection methods",
+    connectionIntro: "Choose local Wi-Fi, Bambu Cloud, or USB. LEVO exposes only capabilities that are genuinely available on this device.",
+    lanMethod: "Same Wi-Fi",
+    cloudMethod: "Cloud",
+    usbMethod: "USB",
+    lanTitle: "Local IP connection",
+    lanHelp: "Works in the LEVO app when the phone and printer share a network and LAN Only plus Developer Mode are enabled.",
+    appDetected: "LEVO app detected",
+    websiteDetected: "You are using the LEVO website",
+    appBridgeReady: "Local printer bridge ready",
+    appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
+    printerIp: "Printer IP address",
+    printerAccessCode: "Access Code",
+    printerSerial: "Serial number (optional)",
+    rememberPrinter: "Store printer securely in the app",
+    discoverPrinters: "Find printers",
+    discoveringPrinters: "Searching…",
+    connectLan: "Secure connect",
+    connectingLan: "Connecting…",
+    disconnectLan: "Disconnect",
+    noPrintersFound: "No printer was found. Enter the IP and Access Code manually.",
+    connectedPrinter: "Connected",
+    selectDiscoveredPrinter: "Select this printer",
+    lanSecurity: "Printer credentials are never stored by the website or browser. If enabled, the app stores them only in Keychain/Keystore.",
+    lanRequirements: "Enable LAN Only and Developer Mode on the X2D, then allow LEVO to access the local network.",
+    lanUnavailableWeb: "Safari cannot make this local connection. Open the same project in the LEVO app to use IP printing.",
+    lanBridgeIncomplete: "The app is present, but this printer-bridge build does not enable connection yet.",
+    sendLanPrint: "Send and start print",
+    sendingLanPrint: "Transferring the print job…",
+    lanPrintQueued: "The printer acknowledged the job and the app confirmed it was queued.",
+    cloudTitle: "Bambu Cloud from your phone",
+    cloudHelp: "Export the 3MF project, upload it privately to MakerWorld, then confirm the printer and AMS in Bambu Handy.",
+    usbTitle: "Print from USB storage",
+    usbHelp: "Download the sliced plate, copy it to a FAT32 or exFAT USB drive, then start it from the X2D screen.",
+    usbStepOne: "Download the plate file to Files.",
+    usbStepTwo: "Copy it to USB storage with your phone adapter.",
+    usbStepThree: "Insert the drive into the X2D and review the file on the printer screen.",
+    downloadForUsb: "Download USB file",
+    usbCompatibility: "Raw G-code is available now; Bambu .gcode.3mf packaging remains gated until it passes a real X2D hardware test.",
     notConnected: "Not connected",
     partnerRequired: "Bambu Lab approval required",
     connectStatus: "Direct cloud control is officially restricted",
@@ -596,6 +685,29 @@ export default function SlicerClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolTrayOpen, setToolTrayOpen] = useState(false);
   const [handyProjectReady, setHandyProjectReady] = useState(false);
+  const [connectionMode, setConnectionMode] = useState<ConnectionMode>("lan");
+  const [nativeEnvironment, setNativeEnvironment] = useState<LevoNativeEnvironment>({
+    native: false,
+    platform: "web",
+    bridgeVersion: null,
+    capabilities: {
+      discovery: false,
+      lanConnection: false,
+      telemetry: false,
+      packagePrintJob: false,
+      fileTransfer: false,
+      startPrint: false,
+    },
+  });
+  const [lanAction, setLanAction] = useState<LanAction>("idle");
+  const [lanIp, setLanIp] = useState("");
+  const [lanAccessCode, setLanAccessCode] = useState("");
+  const [lanSerial, setLanSerial] = useState("");
+  const [rememberPrinter, setRememberPrinter] = useState(true);
+  const [discoveredPrinters, setDiscoveredPrinters] = useState<LevoDiscoveredPrinter[]>([]);
+  const [printerStatus, setPrinterStatus] = useState<LevoPrinterStatus>({ connected: false });
+  const [lanMessage, setLanMessage] = useState("");
+  const [lanTransferProgress, setLanTransferProgress] = useState(0);
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
@@ -607,7 +719,7 @@ export default function SlicerClient() {
   const arrangeTimerRef = useRef<number | null>(null);
   const importingRef = useRef(false);
   const profileRequestRef = useRef(0);
-  const exportIntentRef = useRef<"bambu-handy" | null>(null);
+  const exportIntentRef = useRef<"bambu-handy" | "native-lan" | null>(null);
   const exportIntentTimerRef = useRef<number | null>(null);
   const machineRef = useRef<SlicerSettings>(fallbackSettings(PROFILES["bbl-x2d-04"]));
   const machineKeysRef = useRef<string[]>([]);
@@ -659,6 +771,26 @@ export default function SlicerClient() {
     document.documentElement.lang = locale;
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
+
+  useEffect(() => {
+    let active = true;
+    detectNativePrinterEnvironment().then((environment) => {
+      if (!active) return;
+      setNativeEnvironment(environment);
+      if (!environment.native || !environment.capabilities.lanConnection) setPrinterStatus({ connected: false });
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!printerStatus.connected || !nativeEnvironment.capabilities.telemetry) return;
+    const refresh = () => {
+      getNativePrinterStatus().then(setPrinterStatus)
+        .catch(() => undefined);
+    };
+    const timer = window.setInterval(refresh, 5_000);
+    return () => window.clearInterval(timer);
+  }, [nativeEnvironment.capabilities.telemetry, printerStatus.connected]);
 
   useEffect(() => { plateCountRef.current = plateCount; }, [plateCount]);
 
@@ -894,19 +1026,112 @@ export default function SlicerClient() {
     return true;
   }, [t.actionUnavailable, viewportRoot]);
 
+  const discoverLan = useCallback(async () => {
+    if (!nativeEnvironment.capabilities.discovery || lanAction !== "idle") return;
+    setLanAction("discovering");
+    setLanMessage("");
+    try {
+      const printers = await discoverNativePrinters();
+      setDiscoveredPrinters(printers);
+      if (!printers.length) setLanMessage(t.noPrintersFound);
+    } catch (reason: unknown) {
+      setLanMessage(reason instanceof Error ? reason.message : t.actionUnavailable);
+    } finally {
+      setLanAction("idle");
+    }
+  }, [lanAction, nativeEnvironment.capabilities.discovery, t.actionUnavailable, t.noPrintersFound]);
+
+  const connectLan = useCallback(async () => {
+    if (!nativeEnvironment.capabilities.lanConnection || lanAction !== "idle") return;
+    setLanAction("connecting");
+    setLanMessage("");
+    try {
+      const connected = await connectNativePrinter({
+        ip: lanIp,
+        accessCode: lanAccessCode,
+        serial: lanSerial.trim() || undefined,
+        remember: rememberPrinter,
+      });
+      setPrinterStatus(connected);
+      if (connected.connected) {
+        setLanAccessCode("");
+        setLanMessage(`${t.connectedPrinter}: ${connected.printer?.name ?? connected.printer?.ip ?? lanIp}`);
+      }
+    } catch (reason: unknown) {
+      setPrinterStatus({ connected: false });
+      setLanMessage(reason instanceof Error ? reason.message : t.actionUnavailable);
+    } finally {
+      setLanAction("idle");
+    }
+  }, [lanAccessCode, lanAction, lanIp, lanSerial, nativeEnvironment.capabilities.lanConnection, rememberPrinter, t.actionUnavailable, t.connectedPrinter]);
+
+  const disconnectLan = useCallback(async () => {
+    if (lanAction !== "idle") return;
+    setLanAction("connecting");
+    try {
+      setPrinterStatus(await disconnectNativePrinter());
+      setLanMessage("");
+    } catch (reason: unknown) {
+      setLanMessage(reason instanceof Error ? reason.message : t.actionUnavailable);
+    } finally {
+      setLanAction("idle");
+    }
+  }, [lanAction, t.actionUnavailable]);
+
+  const transmitNativePrint = useCallback(async (projectBlob: Blob) => {
+    const gcode = GCODE_ARTIFACTS.get(artifactId)?.get(selectedPlate) ?? "";
+    if (!gcode) { setLanMessage(t.printNotReady); return; }
+    const required = nativeEnvironment.capabilities;
+    if (!printerStatus.connected || !required.packagePrintJob || !required.fileTransfer || !required.startPrint) {
+      setLanMessage(t.lanBridgeIncomplete);
+      return;
+    }
+
+    const baseName = `LEVO-${profile.shortName}-plate-${selectedPlate + 1}`;
+    const project = new File([projectBlob], `${baseName}.3mf`, { type: "model/3mf" });
+    const gcodeFile = new File([gcode], `${baseName}.gcode`, { type: "text/x-gcode" });
+    setLanAction("transferring");
+    setLanTransferProgress(0);
+    setLanMessage("");
+    try {
+      await sendNativePrintJob({
+        project,
+        gcode: gcodeFile,
+        metadata: {
+          name: baseName,
+          profileId: profile.id,
+          printerModel: profile.model,
+          plate: selectedPlate + 1,
+          nozzleDiameter: profile.nozzle,
+        },
+        onProgress: setLanTransferProgress,
+      });
+      setLanMessage(t.lanPrintQueued);
+    } catch (reason: unknown) {
+      setLanMessage(reason instanceof Error ? reason.message : t.actionUnavailable);
+    } finally {
+      setLanAction("idle");
+    }
+  }, [artifactId, nativeEnvironment.capabilities, printerStatus.connected, profile, selectedPlate, t.actionUnavailable, t.lanBridgeIncomplete, t.lanPrintQueued, t.printNotReady]);
+
   const handleViewportExport = useCallback<NonNullable<ViewportProps["onExport"]>>((file, filename) => {
-    if (exportIntentRef.current !== "bambu-handy" || !filename.toLowerCase().endsWith(".3mf")) return;
+    const intent = exportIntentRef.current;
+    if (!intent || !filename.toLowerCase().endsWith(".3mf")) return;
     exportIntentRef.current = null;
     if (exportIntentTimerRef.current !== null) {
       window.clearTimeout(exportIntentTimerRef.current);
       exportIntentTimerRef.current = null;
     }
-    const phoneFilename = `LEVO-${profile.shortName}-Bambu-Handy.3mf`;
-    downloadBlob(file, phoneFilename);
-    setHandyProjectReady(true);
-    setNotice(t.handyFileReady);
+    if (intent === "native-lan") {
+      void transmitNativePrint(file);
+    } else {
+      const phoneFilename = `LEVO-${profile.shortName}-Bambu-Handy.3mf`;
+      downloadBlob(file, phoneFilename);
+      setHandyProjectReady(true);
+      setNotice(t.handyFileReady);
+    }
     return true;
-  }, [profile.shortName, t.handyFileReady]);
+  }, [profile.shortName, t.handyFileReady, transmitNativePrint]);
 
   const prepareForBambuHandy = useCallback(() => {
     setHandyProjectReady(false);
@@ -924,6 +1149,23 @@ export default function SlicerClient() {
       setNotice(t.actionUnavailable);
     }, 30_000);
   }, [clickControl, t.actionUnavailable]);
+
+  const prepareNativePrint = useCallback(() => {
+    if (lanAction !== "idle") return;
+    exportIntentRef.current = "native-lan";
+    if (!clickControl("save-project", true)) {
+      exportIntentRef.current = null;
+      setLanMessage(t.actionUnavailable);
+      return;
+    }
+    if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
+    exportIntentTimerRef.current = window.setTimeout(() => {
+      if (exportIntentRef.current !== "native-lan") return;
+      exportIntentRef.current = null;
+      exportIntentTimerRef.current = null;
+      setLanMessage(t.actionUnavailable);
+    }, 30_000);
+  }, [clickControl, lanAction, t.actionUnavailable]);
 
   const prepareAction = useCallback((testId: string) => {
     if (clickControl(testId, true)) return;
@@ -1112,6 +1354,13 @@ export default function SlicerClient() {
   const statusLabel = status === "slicing" ? `${Math.round(progress * 100)}%` : status === "ready" ? `${layerCount || "✓"} ${t.layers}` : t.local;
   const printReady = status === "ready" && Boolean(currentGcode());
   const slicedPlateCount = GCODE_ARTIFACTS.get(artifactId)?.size ?? 0;
+  const canLanConnect = nativeEnvironment.native && nativeEnvironment.capabilities.lanConnection;
+  const canLanPrint = canLanConnect
+    && printerStatus.connected
+    && nativeEnvironment.capabilities.packagePrintJob
+    && nativeEnvironment.capabilities.fileTransfer
+    && nativeEnvironment.capabilities.startPrint
+    && printReady;
   const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : sheet === "connect" ? t.connectTitle : t.settings;
 
   return (
@@ -1263,14 +1512,83 @@ export default function SlicerClient() {
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
             <p className="print-safety"><Icon name="info"/><span>{t.printSafety}</span></p>
           </div> : sheet === "connect" ? <div className="sheet-body connect-body">
-            <div className="connection-state"><span><i/></span><div><strong>{t.notConnected}</strong><small>{t.partnerRequired}</small></div></div>
-            <div className="connection-policy"><Icon name="info"/><div><strong>{t.connectStatus}</strong><p>{t.connectStatusHelp}</p><p>{t.connectNext}</p></div></div>
-            <p className="connection-fallback">{t.connectFallback}</p>
-            <div className="connection-links">
-              <a className="primary" href="mailto:devpartner@bambulab.com?subject=LEVO%20Studio%20Bambu%20Lab%20integration"><span>{t.requestPartner}</span><Icon name="external"/></a>
-              <a href="https://wiki.bambulab.com/en/software/third-party-integration" target="_blank" rel="noreferrer"><span>{t.integrationDocs}</span><Icon name="external"/></a>
-              <a href="https://wiki.bambulab.com/en/software/bambu-connect" target="_blank" rel="noreferrer"><span>{t.openBambuGuide}</span><Icon name="external"/></a>
+            <p className="connection-intro">{t.connectionIntro}</p>
+            <div className="connection-method-tabs" role="tablist" aria-label={t.connectTitle}>
+              {(["lan", "cloud", "usb"] as ConnectionMode[]).map((mode) => <button
+                key={mode}
+                role="tab"
+                aria-selected={connectionMode === mode}
+                className={connectionMode === mode ? "active" : ""}
+                onClick={() => setConnectionMode(mode)}
+              ><Icon name={mode === "lan" ? "print" : mode === "cloud" ? "share" : "save"}/><span>{mode === "lan" ? t.lanMethod : mode === "cloud" ? t.cloudMethod : t.usbMethod}</span></button>)}
             </div>
+
+            {connectionMode === "lan" ? <section className="connection-method-panel lan-method-panel">
+              <header>
+                <span className={canLanConnect ? "available" : "unavailable"}><i/></span>
+                <div><strong>{t.lanTitle}</strong><small>{nativeEnvironment.native ? t.appDetected : t.websiteDetected} · {nativeEnvironment.platform.toUpperCase()}</small></div>
+              </header>
+              <p>{t.lanHelp}</p>
+              <div className={`native-bridge-state ${canLanConnect ? "ready" : "blocked"}`}>
+                <Icon name={canLanConnect ? "check" : "info"}/>
+                <span><b>{canLanConnect ? t.appBridgeReady : t.appBridgePreparing}</b><small>{!nativeEnvironment.native ? t.lanUnavailableWeb : !canLanConnect ? t.lanBridgeIncomplete : t.lanRequirements}</small></span>
+              </div>
+
+              {canLanConnect && <>
+                <button className="discover-printers-button" onClick={() => void discoverLan()} disabled={lanAction !== "idle" || !nativeEnvironment.capabilities.discovery}>
+                  <Icon name="fit"/><span>{lanAction === "discovering" ? t.discoveringPrinters : t.discoverPrinters}</span>
+                </button>
+                {discoveredPrinters.length > 0 && <div className="discovered-printers">
+                  {discoveredPrinters.map((printer) => <button key={printer.id} onClick={() => { setLanIp(printer.ip); setLanSerial(printer.serial ?? ""); }}>
+                    <span><b>{printer.name}</b><small>{printer.model ?? profile.model} · {printer.ip}</small></span><em>{t.selectDiscoveredPrinter}</em>
+                  </button>)}
+                </div>}
+
+                {!printerStatus.connected ? <form className="lan-connection-form" onSubmit={(event) => { event.preventDefault(); void connectLan(); }}>
+                  <label><span>{t.printerIp}</span><input dir="ltr" inputMode="decimal" autoCapitalize="none" autoCorrect="off" value={lanIp} onChange={(event) => setLanIp(event.target.value)} placeholder="192.168.1.120" required/></label>
+                  <label><span>{t.printerAccessCode}</span><input dir="ltr" type="password" value={lanAccessCode} onChange={(event) => setLanAccessCode(event.target.value)} autoComplete="off" required/></label>
+                  <label><span>{t.printerSerial}</span><input dir="ltr" autoCapitalize="characters" autoCorrect="off" value={lanSerial} onChange={(event) => setLanSerial(event.target.value)} /></label>
+                  <label className="remember-printer"><input type="checkbox" checked={rememberPrinter} onChange={(event) => setRememberPrinter(event.target.checked)}/><span>{t.rememberPrinter}</span></label>
+                  <button className="connect-lan-button" type="submit" disabled={lanAction !== "idle"}><Icon name="print"/><span>{lanAction === "connecting" ? t.connectingLan : t.connectLan}</span></button>
+                </form> : <div className="connected-printer-card">
+                  <span><Icon name="check"/></span>
+                  <div><b>{t.connectedPrinter}</b><strong>{printerStatus.printer?.name ?? printerStatus.printer?.ip ?? lanIp}</strong><small>{printerStatus.state ?? "idle"}</small></div>
+                  <button onClick={() => void disconnectLan()} disabled={lanAction !== "idle"}>{t.disconnectLan}</button>
+                </div>}
+
+                {printerStatus.connected && <button className="lan-print-button" onClick={prepareNativePrint} disabled={!canLanPrint || lanAction !== "idle"}>
+                  <Icon name="print"/><span><b>{lanAction === "transferring" ? t.sendingLanPrint : t.sendLanPrint}</b><small>{profile.shortName} · {t.plate} {selectedPlate + 1}</small></span>
+                </button>}
+                {lanAction === "transferring" && <progress className="lan-transfer-progress" value={lanTransferProgress} max={1}/>}
+                {lanMessage && <p className="lan-message" role="status">{lanMessage}</p>}
+              </>}
+              <p className="lan-security"><Icon name="info"/><span>{t.lanSecurity}</span></p>
+              <a className="method-doc-link" href="https://wiki.bambulab.com/en/software/third-party-integration" target="_blank" rel="noreferrer"><span>{t.integrationDocs}</span><Icon name="external"/></a>
+            </section> : connectionMode === "cloud" ? <section className="connection-method-panel cloud-method-panel">
+              <header><span className="available"><i/></span><div><strong>{t.cloudTitle}</strong><small>{t.phonePrint}</small></div></header>
+              <p>{t.cloudHelp}</p>
+              <ol className="phone-print-steps">
+                <li><b>1</b><span>{t.phoneStepOne}</span></li>
+                <li><b>2</b><span>{t.phoneStepTwo}</span></li>
+                <li><b>3</b><span>{t.phoneStepThree}</span></li>
+              </ol>
+              <div className="phone-print-actions">
+                <button onClick={prepareForBambuHandy} disabled={!objects.length}><Icon name="save"/><span><b>{t.prepareForHandy}</b><small>{t.prepareForHandyHelp}</small></span></button>
+                {handyProjectReady && <a href="https://makerworld.com/en/upload" target="_blank" rel="noreferrer"><span>{t.openMakerWorld}</span><Icon name="external"/></a>}
+              </div>
+              <p className="phone-print-confirmation"><Icon name="check"/><span>{t.phoneConfirmation}</span></p>
+              <div className="connection-policy"><Icon name="info"/><div><strong>{t.connectStatus}</strong><p>{t.connectStatusHelp}</p><p>{t.connectNext}</p></div></div>
+            </section> : <section className="connection-method-panel usb-method-panel">
+              <header><span className="available"><i/></span><div><strong>{t.usbTitle}</strong><small>FAT32 · exFAT</small></div></header>
+              <p>{t.usbHelp}</p>
+              <ol className="phone-print-steps">
+                <li><b>1</b><span>{t.usbStepOne}</span></li>
+                <li><b>2</b><span>{t.usbStepTwo}</span></li>
+                <li><b>3</b><span>{t.usbStepThree}</span></li>
+              </ol>
+              <button className="usb-download-button" onClick={downloadCurrentGcode} disabled={!printReady}><Icon name="save"/><span><b>{t.downloadForUsb}</b><small>{printReady ? `${profile.shortName} · ${t.plate} ${selectedPlate + 1}` : t.printNotReady}</small></span></button>
+              <p className="usb-compatibility"><Icon name="info"/><span>{t.usbCompatibility}</span></p>
+            </section>}
           </div> : <div className="sheet-body about-body">
             <div className="capability verified"><i/><span><strong>{t.realEditor}</strong><small>{t.realEditorHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>

@@ -30,4 +30,6 @@ Moving CAD parsing into an isolated worker/build that avoids Emscripten's dynami
 
 ## Printer credentials and output trust
 
-LEVO does not request or store Bambu account passwords, printer access codes, cloud tokens, or certificates. Raw `.gcode` is a real sliced export, but not a verified Bambu `.gcode.3mf` project. The UI sends users through Bambu Connect/Studio so those applications can perform the final printer, firmware, nozzle, plate, and AMS checks. Direct cloud initiation remains disabled until Bambu Lab grants partner authorization and official credentials; a future local bridge would additionally need to satisfy the security and physical-device tests in `BAMBU_PRINT_PIPELINE.md`.
+The website does not request or store Bambu account passwords, printer access codes, cloud tokens, or certificates. The mobile UI may pass an X2D access code to the native `LevoPrinter` bridge only after an explicit local-connect action; it is never written to localStorage, sessionStorage, IndexedDB, logs, or the JavaScript bundle. A future remembered-printer implementation must use iOS Keychain or Android Keystore-backed encrypted storage.
+
+Raw `.gcode` is a real sliced export, but not a verified Bambu `.gcode.3mf` project. The native bridge therefore advertises packaging, printer upload, and start capabilities as disabled. Direct cloud initiation remains disabled until Bambu Lab grants partner authorization and official credentials; local Developer Mode transport must separately satisfy the security and physical-device tests in `BAMBU_PRINT_PIPELINE.md`.

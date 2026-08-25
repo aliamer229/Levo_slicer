@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "LEVO Studio — Browser Plate Editor & Slicer",
-  description: "A mobile-first local plate editor, browser slicer, and Bambu print handoff for X2D and H2D profiles.",
+  description: "A shared web and mobile plate editor, local slicer, and verified Bambu print handoff for X2D and H2D profiles.",
   applicationName: "LEVO Web Slicer",
   manifest: "/manifest.webmanifest",
   icons: {
@@ -12,14 +12,14 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LEVO Studio",
-    description: "Real plate editing, local slicing, and print-file handoff for desktop and phone.",
+    description: "One LEVO workspace for web, iOS and Android with local slicing and capability-gated Bambu connections.",
     type: "website",
     images: ["/og.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: "LEVO Studio",
-    description: "Real plate editing, local slicing, and print-file handoff for desktop and phone.",
+    description: "One LEVO workspace for web, iOS and Android with local slicing and capability-gated Bambu connections.",
     images: ["/og.png"],
   },
 };

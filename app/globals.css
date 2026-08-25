@@ -358,6 +358,65 @@ button:disabled { cursor: not-allowed; }
 .connection-details-button svg:first-child { color: var(--accent); }
 
 .connect-body { display: flex; flex-direction: column; gap: 12px; }
+.connection-intro { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.connection-method-tabs { padding: 4px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; direction: ltr; border: 1px solid var(--line-soft); border-radius: 7px; background: #111619; }
+.connection-method-tabs button { min-width: 0; min-height: 48px; padding: 6px; border: 1px solid transparent; border-radius: 5px; display: flex; align-items: center; justify-content: center; gap: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+.connection-method-tabs button.active { border-color: var(--line); background: var(--surface); color: var(--text); }
+.connection-method-tabs svg { width: 18px; height: 18px; flex: 0 0 auto; }
+.connection-method-tabs span { overflow: hidden; font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.connection-method-panel { padding: 15px; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); }
+.connection-method-panel > header { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 10px; direction: ltr; }
+.connection-method-panel > header > span { width: 38px; height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 6px; background: #171c1f; }
+.connection-method-panel > header > span i { width: 10px; height: 10px; border-radius: 50%; background: #6e7a81; }
+.connection-method-panel > header > span.available i { background: var(--accent); box-shadow: 0 0 0 4px #2e3b1e; }
+.connection-method-panel > header > span.unavailable i { background: var(--warning); box-shadow: 0 0 0 4px #3b2f1c; }
+.connection-method-panel > header > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.connection-method-panel > header strong { font-size: 13px; }
+.connection-method-panel > header small { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.connection-method-panel > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.native-bridge-state { padding: 11px; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 9px; direction: ltr; border: 1px solid #66512c; border-radius: 6px; background: var(--warning-surface); color: #e7c986; }
+.native-bridge-state.ready { border-color: #4f6c26; background: #29351f; color: #cfe5a5; }
+.native-bridge-state > svg { width: 20px; height: 20px; }
+.native-bridge-state > span { display: flex; flex-direction: column; gap: 4px; }
+.native-bridge-state b { font-size: 10px; }
+.native-bridge-state small { color: inherit; opacity: .8; font-size: 9px; line-height: 1.45; }
+.discover-printers-button, .connect-lan-button { min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 820; cursor: pointer; }
+.discover-printers-button:disabled, .connect-lan-button:disabled { opacity: .42; }
+.discover-printers-button svg, .connect-lan-button svg { width: 18px; height: 18px; }
+.discovered-printers { display: grid; gap: 6px; }
+.discovered-printers button { min-height: 54px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px; direction: ltr; background: #171c1f; color: var(--text); text-align: left; cursor: pointer; }
+.discovered-printers button span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.discovered-printers b { font-size: 10px; }
+.discovered-printers small { color: var(--muted); font-size: 8.5px; }
+.discovered-printers em { color: var(--accent); font-size: 8.5px; font-style: normal; font-weight: 780; }
+.lan-connection-form { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; direction: ltr; }
+.lan-connection-form > label:not(.remember-printer) { min-width: 0; display: flex; flex-direction: column; gap: 5px; color: var(--muted); font-size: 9px; }
+.lan-connection-form > label:nth-child(3) { grid-column: 1 / -1; }
+.lan-connection-form input:not([type="checkbox"]) { width: 100%; height: 44px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; outline: 0; background: #111619; color: var(--text); font-size: 11px; }
+.lan-connection-form input:focus { border-color: var(--accent-strong); box-shadow: 0 0 0 2px #2e3b1e; }
+.remember-printer { grid-column: 1 / -1; min-height: 36px; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; }
+.remember-printer input { width: 17px; height: 17px; accent-color: var(--accent); }
+.connect-lan-button { grid-column: 1 / -1; border-color: var(--accent-strong); background: var(--accent); color: var(--accent-ink); }
+.connected-printer-card { min-height: 68px; padding: 10px; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; direction: ltr; border: 1px solid #4f6c26; border-radius: 6px; background: #29351f; }
+.connected-printer-card > span { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 50%; background: var(--accent); color: var(--accent-ink); }
+.connected-printer-card svg { width: 20px; height: 20px; }
+.connected-printer-card > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.connected-printer-card b { color: #afc38c; font-size: 8px; text-transform: uppercase; }
+.connected-printer-card strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.connected-printer-card small { color: #afc38c; font-size: 8px; }
+.connected-printer-card button { min-height: 34px; padding: 0 10px; border: 1px solid #5e7538; border-radius: 5px; background: #202819; color: #d6e8b3; font-size: 8.5px; cursor: pointer; }
+.lan-print-button, .usb-download-button { min-height: 54px; padding: 9px 12px; border: 1px solid var(--accent-strong); border-radius: 6px; display: flex; align-items: center; gap: 10px; direction: ltr; background: var(--accent); color: var(--accent-ink); text-align: left; cursor: pointer; }
+.lan-print-button:disabled, .usb-download-button:disabled { border-color: var(--line); background: var(--surface); color: #78848a; cursor: not-allowed; }
+.lan-print-button > svg, .usb-download-button > svg { width: 21px; height: 21px; flex: 0 0 auto; }
+.lan-print-button > span, .usb-download-button > span { display: flex; flex-direction: column; gap: 3px; }
+.lan-print-button b, .usb-download-button b { font-size: 10.5px; }
+.lan-print-button small, .usb-download-button small { color: inherit; opacity: .72; font-size: 8.5px; }
+.lan-transfer-progress { width: 100%; height: 5px; border: 0; accent-color: var(--accent); }
+.lan-message { padding: 9px 10px; border-radius: 5px; background: #111619; color: #ced6da !important; }
+.lan-security, .usb-compatibility { padding: 10px; display: flex; align-items: flex-start; gap: 8px; direction: ltr; border-radius: 6px; background: #171c1f; }
+.lan-security svg, .usb-compatibility svg { width: 17px; height: 17px; flex: 0 0 auto; color: var(--warning); }
+.method-doc-link { min-height: 44px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); text-decoration: none; font-size: 9.5px; font-weight: 780; }
+.method-doc-link svg { width: 16px; height: 16px; }
 .connection-state { min-height: 72px; padding: 13px; display: flex; align-items: center; gap: 12px; direction: ltr; border: 1px solid #71433e; border-radius: 7px; background: var(--danger-surface); }
 .connection-state > span { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid #79504a; border-radius: 6px; background: #281b1a; }
 .connection-state i { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); }
@@ -463,6 +522,12 @@ button:disabled { cursor: not-allowed; }
   .profile-grid { grid-template-columns: 1fr; }
   .print-action-grid { grid-template-columns: 1fr; }
   .print-action-grid button { min-height: 64px; }
+  .connection-method-tabs span { font-size: 8.5px; }
+  .connection-method-panel { padding: 12px; }
+  .lan-connection-form { grid-template-columns: 1fr; }
+  .lan-connection-form > label:nth-child(3), .remember-printer, .connect-lan-button { grid-column: 1; }
+  .connected-printer-card { grid-template-columns: 36px minmax(0, 1fr); }
+  .connected-printer-card > button { grid-column: 1 / -1; min-height: 38px; }
 }
 
 @media (max-width: 420px) {

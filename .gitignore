@@ -36,6 +36,9 @@ yarn-error.log*
 # typescript
 next-env.d.ts
 /dist/
+/mobile/dist/
+/mobile/node_modules/
+/mobile/.vite/
 /.wrangler/
 /.sites-runtime/
 /outputs/

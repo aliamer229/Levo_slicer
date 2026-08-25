@@ -40,12 +40,11 @@ npm test
 
 ## Print and export workflow
 
-After a successful slice, the Print & Export sheet downloads the selected plate's actual G-code, shares it through the operating system when Web Share files are supported, saves the editable 3MF project, or exports all sliced plates. The recommended printer handoff is explicit:
+After a successful slice, the Print & Export sheet downloads the selected plate's actual G-code, shares it through the operating system when Web Share files are supported, saves the editable 3MF project, or exports all sliced plates. The connection center exposes three explicit methods:
 
-1. Download the sliced G-code from LEVO.
-2. On desktop, open or drag it into Bambu Connect or Bambu Studio.
-3. Verify the target printer, build plate, nozzle, material/AMS mapping, and preview before starting.
-4. From a phone, share or transfer the file to a Bambu Connect computer, or use a printer-supported USB/memory-card path.
+1. **Same Wi-Fi / IP** — available only in the signed LEVO iOS/Android app through the native `LevoPrinter` bridge. The hosted website cannot open the printer's raw MQTT/FTPS sockets.
+2. **Cloud** — export the 3MF project, upload it privately to MakerWorld, and make the final printer/AMS confirmation in Bambu Handy.
+3. **USB** — download the sliced plate, copy it to FAT32/exFAT removable storage, and select it on the X2D screen. Raw G-code remains labeled as such until a printer-ready `.gcode.3mf` passes real-hardware validation.
 
 See Bambu Lab's official [Bambu Connect guide](https://wiki.bambulab.com/en/software/bambu-connect) and [third-party integration notice](https://wiki.bambulab.com/en/software/third-party-integration).
 
@@ -53,7 +52,19 @@ See Bambu Lab's official [Bambu Connect guide](https://wiki.bambulab.com/en/soft
 
 The current web engine does not implement Bambu Studio's Auto Arrange, Auto Orient, Cut, Boolean, modifier/negative parts, seam painting, complete color/MMU painting, text/SVG emboss, Measure, or variable layer-height tools. Their native toolbar entries stay disabled and LEVO reports the limitation instead of simulating success.
 
-LEVO supports real G-code export and an official Bambu Connect/Studio handoff, but direct browser-to-printer/cloud networking remains disabled. Bambu Lab's current authorization system restricts critical printer operations, including starting a print, to authorized software. Handy-style cloud printing therefore requires Bambu Lab partner approval, official integration documentation, and issued credentials; LEVO does not request a user's Bambu password or call undocumented private APIs. Raw G-code is also not a validated Bambu `.gcode.3mf` job, and a website cannot reliably know the absolute local path required by desktop handoff schemes. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
+LEVO supports real G-code export and explicit Bambu handoffs, but direct browser-to-printer/cloud networking remains disabled. Handy-style cloud printing requires Bambu Lab partner authorization; the separate LAN path uses the printer's opt-in Developer Mode and a native mobile runtime. The mobile shells and chunked, checksum-verified JavaScript/native bridge are checked in under `mobile/`, while printer discovery, MQTT/FTPS authentication, `.gcode.3mf` packaging, upload, and start capabilities deliberately report `false` until real X2D hardware tests pass. LEVO never converts an unverified transport attempt into a connected/printing success state. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
+
+## Shared mobile application
+
+`mobile/` is a Capacitor 8 project for iOS 15+ and Android 7+. It bundles the same `app/slicer-client.tsx` used by the hosted site, rather than framing or redirecting to the website. The native bridge is registered on both platforms and already provides capability negotiation, private-address validation, ordered chunk staging, SHA-256 verification, cancellation, and cleanup. Printer credentials are reserved for native Keychain/Keystore storage and never enter Web Storage.
+
+```bash
+cd mobile
+npm ci
+npm run sync
+```
+
+Building/signing an iOS binary still requires Xcode and an Apple signing team. Native LAN transport stays gated until it is implemented and validated against the target X2D firmware.
 
 ## License
 

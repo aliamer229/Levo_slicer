@@ -29,14 +29,18 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Raw G-code export and share | Implemented | Selected-plate and combined local downloads; mobile/desktop Web Share file handoff when supported; no application-server upload. |
 | Bambu Connect / Studio handoff | Implemented | Print & Export explains the explicit official desktop handoff and links the Bambu Connect guide. Printer, plate, nozzle, and AMS confirmation remain in Bambu software. |
 | Phone-only Bambu Handy handoff | Implemented | Exports the current Bambu/Orca-compatible 3MF project to the phone, then guides a private MakerWorld upload and final confirmation inside Bambu Handy. It does not impersonate an official cloud client or claim the printer started early. |
+| Shared web/mobile UI | Implemented | The hosted Site and the Capacitor iOS/Android bundle import the same `SlicerClient`, editor modules, styles, profiles, and model loaders. |
+| Native application shells | Implemented | Capacitor 8.5.0 iOS 15+ and Android API 24+ projects are generated and the local application bundle builds successfully. Platform signing is external to this repository. |
+| Native printer bridge contract | Implemented, gated | Capability negotiation, private-LAN validation, ordered 192 KiB chunks, SHA-256 verification, idempotency, cancellation, and staging cleanup are wired. The interface never stores credentials in browser storage. |
 | ZIP multi-plate arrange | Implemented | Imported ZIP objects are size-sorted and packed across the active printer's bed dimensions. Oversized objects and the nine-plate ceiling produce explicit warnings. |
 | General Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
 | Cut / Boolean / modifier parts | Missing | Visible as disabled native controls; the web engine lacks the geometry/part implementation. |
 | Seam paint / Text / Measure / variable layers | Missing | Visible as disabled native controls and described in the platform-status sheet. |
 | Background persistence | Missing | Save `.3mf` explicitly; a reload clears unsaved state. |
-| Printer discovery and status | Disabled | No network probe and no fabricated printer state. |
+| Printer discovery and status | Native adapter pending | Website reports unavailable. Native bridge reports capability `false` until authenticated discovery/status is implemented and verified on X2D hardware; no state is fabricated. |
 | AMS mapping and status | Disabled | No fabricated trays, colors, or material availability. |
-| Bambu `.gcode.3mf` packaging | Missing | Raw G-code is not represented as a validated Bambu print project. |
-| Direct Bambu cloud/browser print | Officially gated | Bambu's authorization system requires approved integration documentation and credentials for print initiation. LEVO exposes the real blocked state and partner-request path; it never fabricates a connection or asks for a Bambu account password. |
+| Bambu `.gcode.3mf` packaging | Native adapter pending | The bridge accepts the project and G-code as independently checksummed assets, but packaging capability stays `false` until a golden X2D-accepted package and negative fixtures pass. |
+| Direct Bambu LAN app print | Native adapter pending | The UI requires live connection, package, transfer, and start capabilities simultaneously. Both native plugins currently return `false`, so no premature print control can run. |
+| Direct Bambu cloud/browser print | Officially gated | Bambu's authorization system requires approved integration documentation and credentials for cloud initiation. LEVO exposes the real blocked state and never fabricates a connection or asks for a Bambu account password. |
 
 “Implemented” means the action exists in source and is covered by type, lint, build, rendered-shell, and engine-control contract checks where applicable. “Profile-integrated” means the bundled Orca profile is used and locked; it is not a claim of hardware certification.

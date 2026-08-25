@@ -9,6 +9,13 @@ const engineUrl = new URL("../node_modules/three-slicer/viewer/dist/Viewport.js"
 const archiveUrl = new URL("../app/archive-import.ts", import.meta.url);
 const loadersUrl = new URL("../app/model-loaders.ts", import.meta.url);
 const packingUrl = new URL("../app/plate-packing.ts", import.meta.url);
+const bridgeUrl = new URL("../app/native-printer-bridge.ts", import.meta.url);
+const mobilePackageUrl = new URL("../mobile/package.json", import.meta.url);
+const mobileMainUrl = new URL("../mobile/src/main.tsx", import.meta.url);
+const iosPluginUrl = new URL("../mobile/ios/App/App/AppDelegate.swift", import.meta.url);
+const iosPlistUrl = new URL("../mobile/ios/App/App/Info.plist", import.meta.url);
+const androidPluginUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/LevoPrinterPlugin.java", import.meta.url);
+const androidActivityUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/MainActivity.java", import.meta.url);
 
 test("mobile and desktop controls target real editor actions", async () => {
   const [app, engine] = await Promise.all([
@@ -71,7 +78,6 @@ test("upload, export, sharing, and official print handoff are real actions", asy
   assert.match(app, /triggerSlice\(true\)/);
   assert.match(app, /https:\/\/wiki\.bambulab\.com\/en\/software\/bambu-connect/);
   assert.match(app, /Bambu Connect or Bambu Studio/);
-  assert.match(app, /devpartner@bambulab\.com/);
   assert.match(app, /undocumented private API/);
   assert.match(app, /onExport=\{handleViewportExport\}/);
   assert.match(app, /LEVO-\$\{profile\.shortName\}-Bambu-Handy\.3mf/);
@@ -152,4 +158,60 @@ test("verified profiles and explicit capability boundaries stay present", async 
   }
   assert.match(engine, /Auto arrange[^\n]+Not implemented/);
   assert.match(app, /Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization/);
+});
+
+test("web, iOS, and Android share one capability-gated printer connection surface", async () => {
+  const [app, bridge, mobilePackageText, mobileMain, iosPlugin, iosPlist, androidPlugin, androidActivity] = await Promise.all([
+    readFile(appUrl, "utf8"),
+    readFile(bridgeUrl, "utf8"),
+    readFile(mobilePackageUrl, "utf8"),
+    readFile(mobileMainUrl, "utf8"),
+    readFile(iosPluginUrl, "utf8"),
+    readFile(iosPlistUrl, "utf8"),
+    readFile(androidPluginUrl, "utf8"),
+    readFile(androidActivityUrl, "utf8"),
+  ]);
+  const mobilePackage = JSON.parse(mobilePackageText);
+
+  assert.match(app, /\["lan", "cloud", "usb"\]/);
+  assert.match(app, /nativeEnvironment\.capabilities\.lanConnection/);
+  assert.match(app, /required\.packagePrintJob/);
+  assert.match(app, /required\.fileTransfer/);
+  assert.match(app, /required\.startPrint/);
+  assert.match(app, /printerStatus\.connected/);
+  assert.match(app, /sendNativePrintJob/);
+  assert.match(bridge, /const CHUNK_BYTES = 192 \* 1024/);
+  assert.match(bridge, /crypto\.subtle\.digest\("SHA-256"/);
+  assert.match(bridge, /idempotencyKey = crypto\.randomUUID\(\)/);
+  assert.doesNotMatch(bridge, /localStorage|sessionStorage|indexedDB/i);
+
+  assert.equal(mobilePackage.dependencies["@capacitor/core"], "8.5.0");
+  assert.equal(mobilePackage.dependencies["@capacitor/ios"], "8.5.0");
+  assert.equal(mobilePackage.dependencies["@capacitor/android"], "8.5.0");
+  assert.match(mobileMain, /import SlicerClient from "\.\.\/\.\.\/app\/slicer-client"/);
+  assert.match(iosPlugin, /registerPluginType\(LevoPrinterPlugin\.self\)/);
+  assert.match(iosPlugin, /"bridgeVersion": "0\.1\.0"/);
+  assert.match(iosPlist, /NSLocalNetworkUsageDescription/);
+  assert.match(androidPlugin, /@CapacitorPlugin\(name = "LevoPrinter"\)/);
+  assert.match(androidActivity, /registerPlugin\(LevoPrinterPlugin\.class\)/);
+
+  for (const nativeSource of [iosPlugin, androidPlugin]) {
+    assert.match(nativeSource, /"lanConnection"[^\n]+false/);
+    assert.match(nativeSource, /"startPrint"[^\n]+false/);
+  }
+});
+
+test("local printer addresses are restricted to private LAN ranges", async () => {
+  const source = await readFile(bridgeUrl, "utf8");
+  const javascript = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const bridge = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
+
+  for (const address of ["10.0.0.2", "172.16.1.5", "172.31.255.254", "192.168.50.20", "x2d.local"]) {
+    assert.equal(bridge.isPrivatePrinterAddress(address), true, `${address} should be accepted`);
+  }
+  for (const address of ["8.8.8.8", "172.32.0.1", "127.0.0.1", "example.com", "192.168.1.999"]) {
+    assert.equal(bridge.isPrivatePrinterAddress(address), false, `${address} should be rejected`);
+  }
 });
