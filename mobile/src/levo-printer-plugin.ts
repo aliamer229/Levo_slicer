@@ -1,7 +1,8 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
-import type { LevoPrinterPlugin } from "../../app/native-printer-bridge";
+import type { LevoPrinterPlugin, LevoUpdaterPlugin } from "../../app/native-printer-bridge";
 
 export const LevoPrinter = registerPlugin<LevoPrinterPlugin>("LevoPrinter");
+export const LevoUpdater = registerPlugin<LevoUpdaterPlugin>("LevoUpdater");
 
 export function exposeLevoNativeRuntime() {
   const existing = window.Capacitor ?? {};
@@ -9,6 +10,6 @@ export function exposeLevoNativeRuntime() {
     ...existing,
     getPlatform: () => Capacitor.getPlatform(),
     isNativePlatform: () => Capacitor.isNativePlatform(),
-    Plugins: { ...(existing.Plugins ?? {}), LevoPrinter },
+    Plugins: { ...(existing.Plugins ?? {}), LevoPrinter, LevoUpdater },
   };
 }
