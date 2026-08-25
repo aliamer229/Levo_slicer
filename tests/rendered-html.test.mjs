@@ -33,7 +33,7 @@ test("renders the production slicer shell and security policy", async () => {
 
   const html = await response.text();
   assert.doesNotMatch(html, /codex-preview/i);
-  assert.match(html, /LEVO Web Slicer/);
+  assert.match(html, /LEVO Studio/);
   assert.match(html, /manifest\.webmanifest/);
   assert.match(html, /LEVO Studio/);
   assert.match(html, /X2D/);
