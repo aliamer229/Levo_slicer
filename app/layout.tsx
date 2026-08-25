@@ -4,7 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "LEVO Studio — Browser Plate Editor & Slicer",
   description: "A shared web and mobile plate editor, local slicer, and verified Bambu print handoff for X2D and H2D profiles.",
-  applicationName: "LEVO Web Slicer",
+  applicationName: "LEVO Studio",
+  authors: [{ name: "LEVONIS" }],
+  creator: "LEVONIS",
+  publisher: "LEVONIS",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: "/favicon.svg",

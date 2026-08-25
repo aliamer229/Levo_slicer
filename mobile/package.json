@@ -1,7 +1,9 @@
 {
   "name": "levo-studio-mobile",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "author": "LEVONIS",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

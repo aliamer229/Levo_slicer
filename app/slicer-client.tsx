@@ -242,6 +242,10 @@ const TEXT = {
     websiteDetected: "أنت تستخدم موقع LEVO",
     appBridgeReady: "جسر الطابعة المحلي جاهز",
     appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
+    downloadAndroid: "تحميل تطبيق LEVO Studio",
+    downloadAndroidHelp: "APK لأجهزة Android · الإصدار 1.0.0",
+    installAndroid: "تنزيل APK",
+    levonisRights: "© 2026 LEVONIS — جميع حقوق LEVO Studio محفوظة، مع بقاء حقوق المكتبات مفتوحة المصدر لأصحابها.",
     printerIp: "عنوان IP للطابعة",
     printerAccessCode: "Access Code",
     printerSerial: "الرقم التسلسلي (اختياري)",
@@ -385,6 +389,10 @@ const TEXT = {
     websiteDetected: "You are using the LEVO website",
     appBridgeReady: "Local printer bridge ready",
     appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
+    downloadAndroid: "Download LEVO Studio",
+    downloadAndroidHelp: "Android APK · version 1.0.0",
+    installAndroid: "Download APK",
+    levonisRights: "© 2026 LEVONIS — LEVO Studio rights reserved; open-source components remain under their respective licenses.",
     printerIp: "Printer IP address",
     printerAccessCode: "Access Code",
     printerSerial: "Serial number (optional)",
@@ -1375,6 +1383,7 @@ export default function SlicerClient() {
         <div className="studio-actions">
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
+          {!nativeEnvironment.native && <a className="app-download-action" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
@@ -1534,6 +1543,10 @@ export default function SlicerClient() {
                 <span><b>{canLanConnect ? t.appBridgeReady : t.appBridgePreparing}</b><small>{!nativeEnvironment.native ? t.lanUnavailableWeb : !canLanConnect ? t.lanBridgeIncomplete : t.lanRequirements}</small></span>
               </div>
 
+              {!nativeEnvironment.native && <a className="apk-download-card" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk">
+                <Icon name="save"/><span><b>{t.downloadAndroid}</b><small>{t.downloadAndroidHelp}</small></span>
+              </a>}
+
               {canLanConnect && <>
                 <button className="discover-printers-button" onClick={() => void discoverLan()} disabled={lanAction !== "idle" || !nativeEnvironment.capabilities.discovery}>
                   <Icon name="fit"/><span>{lanAction === "discovering" ? t.discoveringPrinters : t.discoverPrinters}</span>
@@ -1594,7 +1607,9 @@ export default function SlicerClient() {
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
+            {!nativeEnvironment.native && <a className="about-app-download" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk">{t.downloadAndroid}</a>}
             <a href="https://github.com/aliamer229/Levo_slicer" target="_blank" rel="noreferrer">GitHub · AGPL source</a>
+            <p className="levonis-rights">{t.levonisRights}</p>
           </div>}
         </section>
       </div>}

@@ -174,6 +174,8 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   const mobilePackage = JSON.parse(mobilePackageText);
 
   assert.match(app, /\["lan", "cloud", "usb"\]/);
+  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.0\.0\.apk/);
+  assert.match(app, /© 2026 LEVONIS/);
   assert.match(app, /nativeEnvironment\.capabilities\.lanConnection/);
   assert.match(app, /required\.packagePrintJob/);
   assert.match(app, /required\.fileTransfer/);

@@ -1,0 +1,83 @@
+name: Build LEVO Studio Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/android-apk.yml"
+      - "app/**"
+      - "mobile/**"
+      - "package.json"
+      - "package-lock.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: levo-studio-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build installable APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Install mobile dependencies
+        run: npm ci --prefix mobile
+
+      - name: Build bundled mobile application
+        run: npm run build --prefix mobile
+
+      - name: Synchronize Android project
+        run: cd mobile && npx cap sync android
+
+      - name: Build installable APK
+        run: |
+          chmod +x mobile/android/gradlew
+          cd mobile/android
+          ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Prepare distributable files
+        run: |
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk LEVO-Studio-Android-v1.0.0.apk
+          sha256sum LEVO-Studio-Android-v1.0.0.apk > LEVO-Studio-Android-v1.0.0.apk.sha256
+
+      - name: Verify APK signature
+        run: |
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs LEVO-Studio-Android-v1.0.0.apk
+
+      - name: Upload LEVO Studio APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LEVO-Studio-Android-v1.0.0
+          path: |
+            LEVO-Studio-Android-v1.0.0.apk
+            LEVO-Studio-Android-v1.0.0.apk.sha256
+          if-no-files-found: error
+          retention-days: 90

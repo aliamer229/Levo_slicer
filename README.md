@@ -1,5 +1,7 @@
 # LEVO Studio
 
+Copyright © 2026 LEVONIS. LEVO Studio, its brand identity, product copy, and original project code are owned by LEVONIS and licensed as described in [LICENSE](LICENSE). Third-party components retain their original licenses; see [OPEN_SOURCE_NOTICES.md](OPEN_SOURCE_NOTICES.md) and [COPYRIGHT.md](COPYRIGHT.md).
+
 LEVO Studio is an Arabic-first, mobile-first browser workspace for preparing and slicing models with Bambu Lab X2D and H2D profiles. The editor, model parser, Orca-derived settings, WebAssembly slicer, G-code generation, and toolpath preview run locally in the browser through `three-slicer` 0.2.2. This application does not upload models or generated G-code to an application server.
 
 ## Editor workspace
@@ -65,6 +67,8 @@ npm run sync
 ```
 
 Building/signing an iOS binary still requires Xcode and an Apple signing team. Native LAN transport stays gated until it is implemented and validated against the target X2D firmware.
+
+The Android build workflow produces an installable `LEVO-Studio-Android-v1.0.0.apk` for direct testing. Google Play production distribution must use a private LEVONIS release key stored outside the public repository.
 
 ## License
 

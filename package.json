@@ -2,6 +2,8 @@
   "name": "levo-web-slicer",
   "version": "0.4.0",
   "private": true,
+  "author": "LEVONIS",
+  "license": "AGPL-3.0-or-later",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -45,5 +47,5 @@
     "wrangler": "4.92.0"
   },
   "type": "module",
-  "displayName": "LEVO Web Slicer"
+  "displayName": "LEVO Studio"
 }

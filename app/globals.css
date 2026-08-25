@@ -110,7 +110,7 @@ button:disabled { cursor: not-allowed; }
 .studio-status[data-status="error"] i { background: var(--danger); }
 
 .studio-actions { display: flex; align-items: center; gap: 5px; direction: ltr; }
-.studio-actions > :is(button, .file-select-control) {
+.studio-actions > :is(button, a, .file-select-control) {
   min-width: 38px;
   height: 38px;
   padding: 0 10px;
@@ -123,12 +123,14 @@ button:disabled { cursor: not-allowed; }
   background: transparent;
   color: #cbd3d7;
   cursor: pointer;
+  text-decoration: none;
 }
-.studio-actions > :is(button, .file-select-control):hover, .studio-actions > :is(button, .file-select-control).active { background: var(--surface); border-color: var(--line); color: var(--text); }
+.studio-actions > :is(button, a, .file-select-control):hover, .studio-actions > :is(button, a, .file-select-control).active { background: var(--surface); border-color: var(--line); color: var(--text); }
 .studio-actions svg { width: 19px; height: 19px; }
 .import-action { border-color: var(--line) !important; background: var(--surface) !important; }
 .connect-action { border-color: var(--line) !important; background: transparent !important; }
 .connect-action:hover { background: var(--surface) !important; }
+.app-download-action { border-color: #4f6c26 !important; background: #29351f !important; color: #d7eea7 !important; font-weight: 820; }
 .header-print-action { border-color: var(--accent-strong) !important; background: var(--accent) !important; color: var(--accent-ink) !important; font-weight: 850; }
 .profile-button { padding-inline: 9px !important; flex-direction: column; gap: 1px !important; line-height: 1 !important; }
 .profile-button b { color: var(--accent); font-size: 12px; }
@@ -352,6 +354,8 @@ button:disabled { cursor: not-allowed; }
 .capability strong { font-size: 12px; }
 .capability small { color: var(--muted); font-size: 10px; line-height: 1.5; }
 .about-body > a { min-height: 46px; border: 1px solid var(--line); border-radius: 6px; display: grid; place-items: center; background: var(--surface); color: var(--text); text-decoration: none; font-size: 11px; font-weight: 750; }
+.about-body > a.about-app-download { border-color: var(--accent-strong); background: var(--accent); color: var(--accent-ink); }
+.levonis-rights { margin: 2px 0 0; padding: 10px 4px 0; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 8.5px; line-height: 1.55; text-align: center; }
 
 .connection-details-button { width: 100%; min-height: 46px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; font-weight: 760; }
 .connection-details-button svg { width: 18px; height: 18px; }
@@ -380,6 +384,11 @@ button:disabled { cursor: not-allowed; }
 .native-bridge-state > span { display: flex; flex-direction: column; gap: 4px; }
 .native-bridge-state b { font-size: 10px; }
 .native-bridge-state small { color: inherit; opacity: .8; font-size: 9px; line-height: 1.45; }
+.apk-download-card { min-height: 58px; padding: 9px 12px; display: flex; align-items: center; gap: 11px; direction: ltr; border: 1px solid var(--accent-strong); border-radius: 6px; background: var(--accent); color: var(--accent-ink); text-decoration: none; }
+.apk-download-card > svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.apk-download-card > span { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.apk-download-card b { font-size: 11px; }
+.apk-download-card small { color: #33420e; font-size: 8.5px; }
 .discover-printers-button, .connect-lan-button { min-height: 48px; padding: 0 13px; border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--surface); color: var(--text); font-size: 10px; font-weight: 820; cursor: pointer; }
 .discover-printers-button:disabled, .connect-lan-button:disabled { opacity: .42; }
 .discover-printers-button svg, .connect-lan-button svg { width: 18px; height: 18px; }
@@ -445,8 +454,8 @@ button:disabled { cursor: not-allowed; }
   .studio-project span { font-size: 9px; }
   .studio-status { display: none; }
   .studio-actions { gap: 2px; }
-  .studio-actions > :is(button, .file-select-control) { min-width: 36px; width: 36px; height: 36px; padding: 0; }
-  .studio-actions > :is(button, .file-select-control) > span { display: none; }
+  .studio-actions > :is(button, a, .file-select-control) { min-width: 36px; width: 36px; height: 36px; padding: 0; }
+  .studio-actions > :is(button, a, .file-select-control) > span { display: none; }
   .studio-actions .new-project-action, .studio-actions .panel-button, .studio-actions .header-print-action { display: none; }
   .studio-actions svg { width: 18px; height: 18px; }
   .profile-button { width: 42px !important; }
