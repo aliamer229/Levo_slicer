@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def levoKeystorePath = System.getenv("LEVO_KEYSTORE_PATH")
+def levoKeystorePassword = System.getenv("LEVO_KEYSTORE_PASSWORD")
+def levoKeyAlias = System.getenv("LEVO_KEY_ALIAS")
+def levoKeyPassword = System.getenv("LEVO_KEY_PASSWORD")
+def levoReleaseSigningReady = [
+    levoKeystorePath,
+    levoKeystorePassword,
+    levoKeyAlias,
+    levoKeyPassword,
+].every { value -> value != null && !value.trim().isEmpty() }
+
 android {
     namespace = "iq.levo.studio"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,11 +27,28 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (levoReleaseSigningReady) {
+                storeFile file(levoKeystorePath)
+                storePassword levoKeystorePassword
+                keyAlias levoKeyAlias
+                keyPassword levoKeyPassword
+                enableV1Signing false
+                enableV2Signing true
+                enableV3Signing true
+                enableV4Signing false
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (levoReleaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

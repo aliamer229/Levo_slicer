@@ -1,6 +1,9 @@
 package iq.levo.studio;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -26,6 +29,8 @@ import org.json.JSONObject;
 public class LevoUpdaterPlugin extends Plugin {
     private static final String ORIGIN = "https://levo-web-slicer.aliamer59409.chatgpt.site";
     private static final String MANIFEST_URL = ORIGIN + "/downloads/levo-studio-android.json";
+    private static final String PACKAGE_NAME = "iq.levo.studio";
+    private static final String EXPECTED_SIGNER_SHA256 = "7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1";
     private static final long MAX_APK_BYTES = 300L * 1024L * 1024L;
     private final ExecutorService queue = Executors.newSingleThreadExecutor();
 
@@ -68,6 +73,7 @@ public class LevoUpdaterPlugin extends Plugin {
                     apk.delete();
                     throw new SecurityException("Update checksum mismatch.");
                 }
+                verifyPackage(apk, update);
 
                 Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", apk);
                 Intent installer = new Intent(Intent.ACTION_VIEW);
@@ -94,6 +100,8 @@ public class LevoUpdaterPlugin extends Plugin {
             if (!file.matches("LEVO-Studio-Android-v[0-9.]+\\.apk")) throw new SecurityException("Invalid update filename.");
             String sha256 = manifest.getString("sha256");
             if (!sha256.matches("[a-fA-F0-9]{64}")) throw new SecurityException("Invalid update checksum.");
+            String signer = manifest.getString("signerCertificateSha256");
+            if (!EXPECTED_SIGNER_SHA256.equalsIgnoreCase(signer)) throw new SecurityException("Untrusted update signer.");
             long sizeBytes = manifest.getLong("sizeBytes");
             if (sizeBytes <= 0 || sizeBytes > MAX_APK_BYTES) throw new SecurityException("Invalid update size.");
             return new Update(
@@ -156,6 +164,39 @@ public class LevoUpdaterPlugin extends Plugin {
         return output.toByteArray();
     }
 
+    private void verifyPackage(File apk, Update update) throws Exception {
+        PackageManager manager = getContext().getPackageManager();
+        int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+            ? PackageManager.GET_SIGNING_CERTIFICATES
+            : PackageManager.GET_SIGNATURES;
+        PackageInfo info = manager.getPackageArchiveInfo(apk.getAbsolutePath(), flags);
+        if (info == null || !PACKAGE_NAME.equals(info.packageName)) {
+            apk.delete();
+            throw new SecurityException("Update package identity mismatch.");
+        }
+
+        long archiveVersionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+            ? info.getLongVersionCode()
+            : info.versionCode;
+        if (archiveVersionCode != update.versionCode || !update.versionName.equals(info.versionName)) {
+            apk.delete();
+            throw new SecurityException("Update version metadata mismatch.");
+        }
+
+        Signature[] signatures;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            if (info.signingInfo == null) signatures = null;
+            else signatures = info.signingInfo.getApkContentsSigners();
+        } else {
+            signatures = info.signatures;
+        }
+        if (signatures == null || signatures.length != 1
+            || !certificateDigest(signatures[0]).equalsIgnoreCase(EXPECTED_SIGNER_SHA256)) {
+            apk.delete();
+            throw new SecurityException("Update certificate mismatch.");
+        }
+    }
+
     private int currentVersionCode() throws Exception {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return (int) getContext().getPackageManager().getPackageInfo(getContext().getPackageName(), 0).getLongVersionCode();
@@ -177,6 +218,15 @@ public class LevoUpdaterPlugin extends Plugin {
         }
         StringBuilder result = new StringBuilder();
         for (byte value : messageDigest.digest()) result.append(String.format("%02x", value));
+        return result.toString();
+    }
+
+    private static String certificateDigest(Signature signature) throws Exception {
+        MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
+        StringBuilder result = new StringBuilder();
+        for (byte value : messageDigest.digest(signature.toByteArray())) {
+            result.append(String.format("%02x", value));
+        }
         return result.toString();
     }
 

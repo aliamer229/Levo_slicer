@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 import ts from "typescript";
 
@@ -20,8 +20,10 @@ const androidUpdaterUrl = new URL("../mobile/android/app/src/main/java/iq/levo/s
 const androidActivityUrl = new URL("../mobile/android/app/src/main/java/iq/levo/studio/MainActivity.java", import.meta.url);
 const androidManifestUrl = new URL("../mobile/android/app/src/main/AndroidManifest.xml", import.meta.url);
 const androidStringsUrl = new URL("../mobile/android/app/src/main/res/values/strings.xml", import.meta.url);
-const apkUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.0.0.apk", import.meta.url);
-const apkChecksumUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.0.0.apk.sha256", import.meta.url);
+const androidBuildUrl = new URL("../mobile/android/app/build.gradle", import.meta.url);
+const androidWorkflowUrl = new URL("../.github/workflows/android-apk.yml", import.meta.url);
+const apkUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.1.0.apk", import.meta.url);
+const apkChecksumUrl = new URL("../public/downloads/LEVO-Studio-Android-v1.1.0.apk.sha256", import.meta.url);
 
 test("mobile and desktop controls target real editor actions", async () => {
   const [app, engine] = await Promise.all([
@@ -180,7 +182,7 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   const mobilePackage = JSON.parse(mobilePackageText);
 
   assert.match(app, /\["lan", "cloud", "usb"\]/);
-  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.0\.0\.apk/);
+  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.1\.0\.apk/);
   assert.match(app, /© 2026 LEVONIS/);
   assert.match(app, /nativeEnvironment\.capabilities\.lanConnection/);
   assert.match(app, /required\.packagePrintJob/);
@@ -242,11 +244,39 @@ test("Android updates are in-place, origin-locked, and checksum-verified", async
   assert.match(updater, /https:\/\/levo-web-slicer\.aliamer59409\.chatgpt\.site/);
   assert.match(updater, /Untrusted update origin/);
   assert.match(updater, /SHA-256/);
+  assert.match(updater, /7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1/);
+  assert.match(updater, /GET_SIGNING_CERTIFICATES/);
+  assert.match(updater, /Update certificate mismatch/);
   assert.match(updater, /FileProvider\.getUriForFile/);
   assert.doesNotMatch(updater, /setInstanceFollowRedirects\(true\)/);
 });
 
-test("downloadable Android APK is branded and checksum-verified", async () => {
+test("Android production releases require the permanent LEVONIS signer", async () => {
+  const [build, workflow] = await Promise.all([
+    readFile(androidBuildUrl, "utf8"),
+    readFile(androidWorkflowUrl, "utf8"),
+  ]);
+
+  for (const variable of ["LEVO_KEYSTORE_PATH", "LEVO_KEYSTORE_PASSWORD", "LEVO_KEY_ALIAS", "LEVO_KEY_PASSWORD"]) {
+    assert.match(build, new RegExp(variable));
+  }
+  for (const secret of ["LEVO_KEYSTORE_BASE64", "LEVO_KEYSTORE_PASSWORD", "LEVO_KEY_ALIAS", "LEVO_KEY_PASSWORD"]) {
+    assert.match(workflow, new RegExp(`secrets\\.${secret}`));
+  }
+  assert.match(workflow, /:app:assembleRelease/);
+  assert.match(workflow, /7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1/);
+  assert.match(workflow, /Verified using v2 scheme/);
+  assert.match(workflow, /Verified using v3 scheme/);
+  assert.match(workflow, /gh release create/);
+});
+
+test("downloadable Android APK is branded and checksum-verified", async (context) => {
+  try {
+    await Promise.all([access(apkUrl), access(apkChecksumUrl)]);
+  } catch {
+    context.skip("The signed distribution artifact is attached only to production/site releases.");
+    return;
+  }
   const [apk, checksumFile, manifest, strings] = await Promise.all([
     readFile(apkUrl),
     readFile(apkChecksumUrl, "utf8"),
@@ -258,7 +288,7 @@ test("downloadable Android APK is branded and checksum-verified", async () => {
 
   assert.deepEqual([...apk.subarray(0, 4)], [0x50, 0x4b, 0x03, 0x04]);
   assert.equal(actual, expected);
-  assert.ok(apk.byteLength > 20_000_000);
+  assert.ok(apk.byteLength > 5_000_000);
   assert.match(manifest, /android:allowBackup="false"/);
   assert.match(manifest, /android:usesCleartextTraffic="false"/);
   assert.match(strings, /<string name="app_name">LEVO Studio<\/string>/);

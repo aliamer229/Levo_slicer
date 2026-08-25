@@ -1,0 +1,67 @@
+name: Prepare LEVO Android signing bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/android-signing-bootstrap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Build unsigned release and signing tools
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mobile/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Build unsigned production package
+        run: |
+          set -euo pipefail
+          npm ci
+          npm ci --prefix mobile
+          npm run build --prefix mobile
+          cd mobile
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Collect unsigned APK and official Android signing tools
+        run: |
+          set -euo pipefail
+          BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          mkdir -p levo-signing-bootstrap/lib
+          cp mobile/android/app/build/outputs/apk/release/app-release-unsigned.apk levo-signing-bootstrap/LEVO-Studio-Android-v1.1.0-unsigned.apk
+          cp "$BUILD_TOOLS/apksigner" levo-signing-bootstrap/apksigner
+          cp "$BUILD_TOOLS/zipalign" levo-signing-bootstrap/zipalign
+          cp "$BUILD_TOOLS/lib/apksigner.jar" levo-signing-bootstrap/lib/apksigner.jar
+          chmod +x levo-signing-bootstrap/apksigner levo-signing-bootstrap/zipalign
+
+      - name: Upload one-time bootstrap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LEVO-Android-signing-bootstrap-v1.1.0
+          path: levo-signing-bootstrap
+          if-no-files-found: error
+          retention-days: 1

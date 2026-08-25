@@ -246,7 +246,7 @@ const TEXT = {
     appBridgeReady: "جسر الطابعة المحلي جاهز",
     appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
     downloadAndroid: "تحميل تطبيق LEVO Studio",
-    downloadAndroidHelp: "APK لأجهزة Android · الإصدار 1.0.0 · 25 MB",
+    downloadAndroidHelp: "APK رسمي لأجهزة Android · الإصدار 1.1.0",
     installAndroid: "تنزيل APK",
     updateAvailable: "تحديث جديد",
     updateNow: "تحديث الآن",
@@ -401,7 +401,7 @@ const TEXT = {
     appBridgeReady: "Local printer bridge ready",
     appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
     downloadAndroid: "Download LEVO Studio",
-    downloadAndroidHelp: "Android APK · version 1.0.0 · 25 MB",
+    downloadAndroidHelp: "Official Android APK · version 1.1.0",
     installAndroid: "Download APK",
     updateAvailable: "Update available",
     updateNow: "Update now",
@@ -1424,7 +1424,7 @@ export default function SlicerClient() {
         <div className="studio-actions">
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
-          {!nativeEnvironment.native && <a className="app-download-action" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
+          {!nativeEnvironment.native && <a className="app-download-action" href="/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
           {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
@@ -1585,7 +1585,7 @@ export default function SlicerClient() {
                 <span><b>{canLanConnect ? t.appBridgeReady : t.appBridgePreparing}</b><small>{!nativeEnvironment.native ? t.lanUnavailableWeb : !canLanConnect ? t.lanBridgeIncomplete : t.lanRequirements}</small></span>
               </div>
 
-              {!nativeEnvironment.native && <a className="apk-download-card" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk">
+              {!nativeEnvironment.native && <a className="apk-download-card" href="/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk">
                 <Icon name="save"/><span><b>{t.downloadAndroid}</b><small>{t.downloadAndroidHelp}</small></span>
               </a>}
 
@@ -1654,7 +1654,7 @@ export default function SlicerClient() {
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
-            {!nativeEnvironment.native && <a className="about-app-download" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk">{t.downloadAndroid}</a>}
+            {!nativeEnvironment.native && <a className="about-app-download" href="/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk">{t.downloadAndroid}</a>}
             <p className="levonis-rights">{t.levonisRights}</p>
             <details className="legal-details">
               <summary>{t.legalInfo}</summary>
