@@ -8,15 +8,18 @@ import type { ViewportEvent, ViewportProps } from "three-slicer/viewer";
 import { FILE_PICKER_ACCEPT, extractModelArchive, fileExtension, normalizeModelFile } from "./archive-import";
 import { registerExtendedModelLoaders } from "./model-loaders";
 import {
+  checkForNativeUpdate,
   connectNativePrinter,
   detectNativePrinterEnvironment,
   discoverNativePrinters,
   disconnectNativePrinter,
   getNativePrinterStatus,
+  installNativeUpdate,
   sendNativePrintJob,
   type LevoDiscoveredPrinter,
   type LevoNativeEnvironment,
   type LevoPrinterStatus,
+  type LevoUpdateStatus,
 } from "./native-printer-bridge";
 import { packModelsAcrossPlates } from "./plate-packing";
 
@@ -245,6 +248,14 @@ const TEXT = {
     downloadAndroid: "تحميل تطبيق LEVO Studio",
     downloadAndroidHelp: "APK لأجهزة Android · الإصدار 1.0.0 · 25 MB",
     installAndroid: "تنزيل APK",
+    updateAvailable: "تحديث جديد",
+    updateNow: "تحديث الآن",
+    updatingApp: "جارٍ تنزيل التحديث والتحقق منه…",
+    appUpToDate: "التطبيق محدّث",
+    updateHelp: "يُثبّت Android النسخة الجديدة فوق الحالية ويحافظ على المشاريع والبيانات. قد يطلب إذن تثبيت التحديثات أول مرة.",
+    legalInfo: "المعلومات القانونية",
+    legalSummary: "LEVO Studio منتج مملوك لـ LEVONIS. استُخدمت مكتبات مفتوحة المصدر كمكوّنات مساعدة وفق تراخيصها الأصلية.",
+    sourceAndNotices: "المصدر وإشعارات المكتبات",
     levonisRights: "© 2026 LEVONIS — جميع حقوق LEVO Studio محفوظة، مع بقاء حقوق المكتبات مفتوحة المصدر لأصحابها.",
     printerIp: "عنوان IP للطابعة",
     printerAccessCode: "Access Code",
@@ -392,6 +403,14 @@ const TEXT = {
     downloadAndroid: "Download LEVO Studio",
     downloadAndroidHelp: "Android APK · version 1.0.0 · 25 MB",
     installAndroid: "Download APK",
+    updateAvailable: "Update available",
+    updateNow: "Update now",
+    updatingApp: "Downloading and verifying the update…",
+    appUpToDate: "App is up to date",
+    updateHelp: "Android installs the new version over the current app and preserves projects and data. It may request update-install permission once.",
+    legalInfo: "Legal information",
+    legalSummary: "LEVO Studio is a LEVONIS product. Open-source libraries are supporting components used under their original licenses.",
+    sourceAndNotices: "Source and library notices",
     levonisRights: "© 2026 LEVONIS — LEVO Studio rights reserved; open-source components remain under their respective licenses.",
     printerIp: "Printer IP address",
     printerAccessCode: "Access Code",
@@ -715,6 +734,9 @@ export default function SlicerClient() {
   const [printerStatus, setPrinterStatus] = useState<LevoPrinterStatus>({ connected: false });
   const [lanMessage, setLanMessage] = useState("");
   const [lanTransferProgress, setLanTransferProgress] = useState(0);
+  const [updateStatus, setUpdateStatus] = useState<LevoUpdateStatus | null>(null);
+  const [updateAction, setUpdateAction] = useState<"idle" | "installing">("idle");
+  const [updateMessage, setUpdateMessage] = useState("");
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
@@ -753,6 +775,15 @@ export default function SlicerClient() {
       });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!nativeEnvironment.native || nativeEnvironment.platform !== "android") return;
+    let active = true;
+    checkForNativeUpdate()
+      .then((result) => { if (active && result) setUpdateStatus(result); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, [nativeEnvironment.native, nativeEnvironment.platform]);
 
   useEffect(() => {
     const requestId = profileRequestRef.current + 1;
@@ -1368,6 +1399,17 @@ export default function SlicerClient() {
     && nativeEnvironment.capabilities.fileTransfer
     && nativeEnvironment.capabilities.startPrint
     && printReady;
+  const installAppUpdate = useCallback(async () => {
+    if (updateAction !== "idle") return;
+    setUpdateAction("installing");
+    setUpdateMessage(t.updatingApp);
+    try {
+      await installNativeUpdate();
+    } catch (reason: unknown) {
+      setUpdateMessage(reason instanceof Error ? reason.message : t.actionUnavailable);
+      setUpdateAction("idle");
+    }
+  }, [t.actionUnavailable, t.updatingApp, updateAction]);
   const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : sheet === "connect" ? t.connectTitle : t.settings;
 
   return (
@@ -1383,6 +1425,7 @@ export default function SlicerClient() {
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
           {!nativeEnvironment.native && <a className="app-download-action" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
+          {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
@@ -1601,13 +1644,23 @@ export default function SlicerClient() {
               <p className="usb-compatibility"><Icon name="info"/><span>{t.usbCompatibility}</span></p>
             </section>}
           </div> : <div className="sheet-body about-body">
+            {nativeEnvironment.native && updateStatus && <section className={`app-update-card ${updateStatus.available ? "available" : "current"}`}>
+              <Icon name={updateStatus.available ? "save" : "check"}/>
+              <div><strong>{updateStatus.available ? `${t.updateAvailable} · ${updateStatus.latestVersionName}` : t.appUpToDate}</strong><small>{t.updateHelp}</small></div>
+              {updateStatus.available && <button onClick={() => void installAppUpdate()} disabled={updateAction !== "idle"}>{updateAction === "installing" ? t.updatingApp : t.updateNow}</button>}
+              {updateMessage && <p role="status">{updateMessage}</p>}
+            </section>}
             <div className="capability verified"><i/><span><strong>{t.realEditor}</strong><small>{t.realEditorHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
             {!nativeEnvironment.native && <a className="about-app-download" href="/downloads/LEVO-Studio-Android-v1.0.0.apk" download="LEVO-Studio-Android-v1.0.0.apk">{t.downloadAndroid}</a>}
-            <a href="https://github.com/aliamer229/Levo_slicer" target="_blank" rel="noreferrer">GitHub · AGPL source</a>
             <p className="levonis-rights">{t.levonisRights}</p>
+            <details className="legal-details">
+              <summary>{t.legalInfo}</summary>
+              <p>{t.legalSummary}</p>
+              <a href="https://github.com/aliamer229/Levo_slicer" target="_blank" rel="noreferrer">{t.sourceAndNotices}</a>
+            </details>
           </div>}
         </section>
       </div>}
