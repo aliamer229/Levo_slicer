@@ -131,6 +131,7 @@ button:disabled { cursor: not-allowed; }
 .connect-action { border-color: var(--line) !important; background: transparent !important; }
 .connect-action:hover { background: var(--surface) !important; }
 .app-download-action { border-color: #4f6c26 !important; background: #29351f !important; color: #d7eea7 !important; font-weight: 820; }
+.app-update-action { border-color: #6f9222 !important; background: #a3d72f !important; color: #152006 !important; font-weight: 850; }
 .header-print-action { border-color: var(--accent-strong) !important; background: var(--accent) !important; color: var(--accent-ink) !important; font-weight: 850; }
 .profile-button { padding-inline: 9px !important; flex-direction: column; gap: 1px !important; line-height: 1 !important; }
 .profile-button b { color: var(--accent); font-size: 12px; }
@@ -356,6 +357,18 @@ button:disabled { cursor: not-allowed; }
 .about-body > a { min-height: 46px; border: 1px solid var(--line); border-radius: 6px; display: grid; place-items: center; background: var(--surface); color: var(--text); text-decoration: none; font-size: 11px; font-weight: 750; }
 .about-body > a.about-app-download { border-color: var(--accent-strong); background: var(--accent); color: var(--accent-ink); }
 .levonis-rights { margin: 2px 0 0; padding: 10px 4px 0; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 8.5px; line-height: 1.55; text-align: center; }
+.app-update-card { padding: 12px; border: 1px solid var(--line); border-radius: 7px; display: grid; grid-template-columns: 24px 1fr; gap: 9px 11px; background: var(--surface); }
+.app-update-card.available { border-color: #6f9222; background: #20291b; }
+.app-update-card > svg { width: 22px; height: 22px; color: var(--accent); }
+.app-update-card > div { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.app-update-card strong { font-size: 11px; }
+.app-update-card small { color: var(--muted); font-size: 8.5px; line-height: 1.55; }
+.app-update-card button { grid-column: 1 / -1; min-height: 44px; border: 1px solid var(--accent-strong); border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-size: 10px; font-weight: 850; }
+.app-update-card p { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.legal-details { border: 1px solid var(--line-soft); border-radius: 6px; color: var(--muted); font-size: 9px; }
+.legal-details summary { padding: 11px 12px; cursor: pointer; color: var(--text); font-weight: 750; }
+.legal-details p { margin: 0; padding: 0 12px 10px; line-height: 1.6; }
+.legal-details a { margin: 0 12px 12px; min-height: 38px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 5px; color: var(--text); text-decoration: none; }
 
 .connection-details-button { width: 100%; min-height: 46px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 11px; font-weight: 760; }
 .connection-details-button svg { width: 18px; height: 18px; }
