@@ -64,20 +64,20 @@ jobs:
 
       - name: Prepare distributable files
         run: |
-          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk LEVO-Studio-Android-v1.0.0.apk
-          sha256sum LEVO-Studio-Android-v1.0.0.apk > LEVO-Studio-Android-v1.0.0.apk.sha256
+          cp mobile/android/app/build/outputs/apk/debug/app-debug.apk LEVO-Studio-Android-v1.1.0.apk
+          sha256sum LEVO-Studio-Android-v1.1.0.apk > LEVO-Studio-Android-v1.1.0.apk.sha256
 
       - name: Verify APK signature
         run: |
           BUILD_TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs LEVO-Studio-Android-v1.0.0.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs LEVO-Studio-Android-v1.1.0.apk
 
       - name: Upload LEVO Studio APK
         uses: actions/upload-artifact@v4
         with:
-          name: LEVO-Studio-Android-v1.0.0
+          name: LEVO-Studio-Android-v1.1.0
           path: |
-            LEVO-Studio-Android-v1.0.0.apk
-            LEVO-Studio-Android-v1.0.0.apk.sha256
+            LEVO-Studio-Android-v1.1.0.apk
+            LEVO-Studio-Android-v1.1.0.apk.sha256
           if-no-files-found: error
           retention-days: 90
