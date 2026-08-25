@@ -35,6 +35,14 @@ This project does not copy code from the surveyed Bambu MCP repositories. They w
 
 The application also uses React, Next.js, Vinext, Vite, Three.js, Cloudflare Workers tooling, and their transitive dependencies under their respective licenses. Their package metadata and license files remain available in the dependency distribution produced by `npm ci`.
 
+### Eclipse Paho Java client 1.2.5
+
+- Source: https://github.com/eclipse-paho/paho.mqtt.java
+- License: Eclipse Public License 2.0 and Eclipse Distribution License 1.0
+- Role: MQTT 3.1.1 over TLS for the Android app's direct local-network connection and read-only printer telemetry.
+
+LEVONIS owns LEVO Studio's original integration code and product identity. Names and notices belonging to third-party libraries are retained here because they cannot legally be reassigned.
+
 ## Source availability
 
 Because this application includes and modifies an AGPL-covered network application stack, users interacting with a deployed version must be offered the corresponding source. The UI’s About sheet links to https://github.com/aliamer229/Levo_slicer.
