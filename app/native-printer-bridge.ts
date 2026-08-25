@@ -151,7 +151,9 @@ export async function connectNativePrinter(options: LevoPrinterConnection) {
   if (!isPrivatePrinterAddress(options.ip)) throw new Error("Enter a private LAN address or a .local host name.");
   const accessCode = options.accessCode.trim();
   if (accessCode.length < 6 || accessCode.length > 32) throw new Error("The printer access code is invalid.");
-  return requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode });
+  const serial = options.serial?.trim();
+  if (!serial || !/^[a-z0-9_-]{6,64}$/i.test(serial)) throw new Error("Enter the printer serial number shown on its Device screen.");
+  return requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false });
 }
 
 export async function disconnectNativePrinter() {
