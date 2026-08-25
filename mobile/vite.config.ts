@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     target: "es2022",
-    sourcemap: true,
+    sourcemap: false,
+    reportCompressedSize: false,
   },
   resolve: {
     dedupe: ["react", "react-dom", "three"],
