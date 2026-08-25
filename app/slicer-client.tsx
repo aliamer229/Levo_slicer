@@ -22,9 +22,10 @@ import {
   type LevoUpdateStatus,
 } from "./native-printer-bridge";
 import { packModelsAcrossPlates } from "./plate-packing";
+import { deleteStoredProject, listStoredProjects, loadStoredProject, saveStoredProject, type StoredLevoProject } from "./project-store";
 
 type Locale = "ar" | "en";
-type Sheet = "setup" | "print" | "connect" | "about" | null;
+type Sheet = "setup" | "projects" | "print" | "connect" | "about" | null;
 type ProfileId = "bbl-x2d-04" | "bbl-h2d-04";
 type QualityId = "fine" | "standard" | "draft";
 type StrengthId = "light" | "standard" | "strong";
@@ -173,6 +174,14 @@ const EDITOR_SHADOW_CSS = `
   .sidebar-scroll, .side-bottom { background: #181d20; }
   .side-bottom { border-color: #343d43; }
   .side-card { background: #21272b; border-color: #343d43; border-radius: 7px; color: #dfe5e8; box-shadow: none; }
+  .settings-panel, .settings-panel .sp-top, .settings-panel .sp-body, .settings-panel .page,
+  .settings-panel .group, .settings-panel .row, .sc-fold-body, .slice-menu,
+  .slice-menu button { background: #181d20 !important; color: #dfe5e8 !important; border-color: #343d43 !important; }
+  .settings-panel h2, .settings-panel h3, .settings-panel .lbl, .settings-panel label,
+  .settings-panel summary, .settings-panel .key { color: #dfe5e8 !important; }
+  .settings-panel .key, .settings-panel .muted, .settings-panel small { color: #9ca8ae !important; }
+  .settings-panel input:not([type="checkbox"]):not([type="color"]), .settings-panel select,
+  .settings-panel textarea, .settings-panel button { background: #14181b !important; color: #edf1f3 !important; border-color: #3b454b !important; }
   .sc-head, .sc-info b, .obj-list2 .obj-name, .side-card .view-type-row, .side-card .slice-layer label, .side-card .grad-title, .sc-fold>summary b { color: #e7ecef; }
   .sc-info, .sc-note, .fil-mat, .side-card .role-legend, .side-card .slice-travel, .sc-fold>summary { color: #9ca8ae; }
   .side-card select, .side-card input:not([type="range"]):not([type="checkbox"]):not([type="color"]), .side-card .obj-ext { background: #14181b; color: #edf1f3; border-color: #3b454b; }
@@ -205,6 +214,11 @@ const TEXT = {
   ar: {
     title: "LEVO Studio",
     newProject: "مشروع جديد",
+    projects: "المشاريع",
+    autosaved: "محفوظ تلقائيًا",
+    resumeProject: "فتح واستئناف",
+    deleteProject: "حذف المشروع",
+    noProjects: "لا توجد مشاريع محفوظة بعد.",
     printer: "الطابعة",
     settings: "الإعدادات",
     about: "حالة المنصة",
@@ -360,6 +374,11 @@ const TEXT = {
   en: {
     title: "LEVO Studio",
     newProject: "New project",
+    projects: "Projects",
+    autosaved: "Auto-saved",
+    resumeProject: "Open and resume",
+    deleteProject: "Delete project",
+    noProjects: "No saved projects yet.",
     printer: "Printer",
     settings: "Settings",
     about: "Platform status",
@@ -738,6 +757,9 @@ export default function SlicerClient() {
   const [updateAction, setUpdateAction] = useState<"idle" | "installing">("idle");
   const [updateMessage, setUpdateMessage] = useState("");
   const [workspaceKey, setWorkspaceKey] = useState(0);
+  const [projectId, setProjectId] = useState(() => crypto.randomUUID());
+  const [projectName, setProjectName] = useState("LEVO Project");
+  const [savedProjects, setSavedProjects] = useState<StoredLevoProject[]>([]);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
   const viewportMountRef = useRef<HTMLDivElement>(null);
@@ -748,10 +770,14 @@ export default function SlicerClient() {
   const arrangeTimerRef = useRef<number | null>(null);
   const importingRef = useRef(false);
   const profileRequestRef = useRef(0);
+  const progressFrameRef = useRef<number | null>(null);
+  const pendingProgressRef = useRef(0);
   const exportIntentRef = useRef<"bambu-handy" | "native-lan" | null>(null);
   const exportIntentTimerRef = useRef<number | null>(null);
   const machineRef = useRef<SlicerSettings>(fallbackSettings(PROFILES["bbl-x2d-04"]));
   const machineKeysRef = useRef<string[]>([]);
+  const projectFilesRef = useRef<File[]>([]);
+  const autosaveTimerRef = useRef<number | null>(null);
   const [artifactId] = useState(() => Symbol("levo-editor-gcode"));
   const profile = PROFILES[profileId];
   const t = TEXT[locale];
@@ -841,6 +867,8 @@ export default function SlicerClient() {
     GCODE_ARTIFACTS.delete(artifactId);
     if (arrangeTimerRef.current !== null) window.clearTimeout(arrangeTimerRef.current);
     if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
+    if (progressFrameRef.current !== null) window.cancelAnimationFrame(progressFrameRef.current);
+    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
   }, [artifactId]);
 
   useEffect(() => {
@@ -1031,6 +1059,7 @@ export default function SlicerClient() {
         setImportProgress((current) => ({ label: t.zipAnalyzing, ratio: 1, extracted: current?.extracted ?? modelFiles.length }));
       }
       await dispatchFilesToEngine(modelFiles);
+      projectFilesRef.current = [...projectFilesRef.current, ...modelFiles];
       if (hasArchive && !window.__vpApi?.()) {
         archivePlanRef.current = null;
         archivePlanned = false;
@@ -1051,6 +1080,53 @@ export default function SlicerClient() {
       if (!archivePlanned) setImportProgress(null);
     }
   }, [dispatchFilesToEngine, objects, selectedPlate, t.emptyFile, t.importFailed, t.imported, t.importing, t.zipAnalyzing]);
+
+  useEffect(() => {
+    if (!objects.length || !projectFilesRef.current.length) return;
+    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      void saveStoredProject({
+        id: projectId,
+        name: projectName,
+        updatedAt: Date.now(),
+        files: projectFilesRef.current,
+        profileId,
+        quality,
+        strength,
+        support,
+      });
+    }, 900);
+  }, [objects, profileId, projectId, projectName, quality, settings, strength, support]);
+
+  const openProjects = useCallback(async () => {
+    setSavedProjects(await listStoredProjects().catch(() => []));
+    setSheet("projects");
+  }, []);
+
+  const resumeStoredProject = useCallback(async (id: string) => {
+    const saved = await loadStoredProject(id);
+    if (!saved) return;
+    GCODE_ARTIFACTS.get(artifactId)?.clear();
+    projectFilesRef.current = saved.files;
+    setProjectId(saved.id);
+    setProjectName(saved.name);
+    if (saved.profileId in PROFILES) setProfileId(saved.profileId as ProfileId);
+    if (saved.quality in QUALITY) setQuality(saved.quality as QualityId);
+    if (saved.strength in STRENGTH) setStrength(saved.strength as StrengthId);
+    setSupport(saved.support);
+    setObjects([]);
+    setWorkspaceKey((value) => value + 1);
+    setSheet(null);
+    for (let frame = 0; frame < 5; frame += 1) await nextFrame();
+    await dispatchFilesToEngine(saved.files);
+    setNotice(t.autosaved);
+  }, [artifactId, dispatchFilesToEngine, t.autosaved]);
+
+  const removeStoredProject = useCallback(async (id: string) => {
+    await deleteStoredProject(id);
+    setSavedProjects((current) => current.filter((project) => project.id !== id));
+  }, []);
 
   const clickControl = useCallback((testId: string, silent = false) => {
     const root = viewportRoot();
@@ -1319,7 +1395,11 @@ export default function SlicerClient() {
       setStatus(event.value ? "slicing" : "editing");
       if (!event.value) setProgress(0);
     } else if (event.type === "progress") {
-      setProgress(Math.max(0, Math.min(1, event.value)));
+      pendingProgressRef.current = Math.max(0, Math.min(1, event.value));
+      if (progressFrameRef.current === null) progressFrameRef.current = window.requestAnimationFrame(() => {
+        progressFrameRef.current = null;
+        setProgress(pendingProgressRef.current);
+      });
     } else if (event.type === "layerCount") {
       setLayerCount(event.value);
     } else if (event.type === "notice") {
@@ -1351,6 +1431,9 @@ export default function SlicerClient() {
     if (objects.length && !window.confirm(t.newConfirm)) return;
     GCODE_ARTIFACTS.get(artifactId)?.clear();
     setObjects([]);
+    projectFilesRef.current = [];
+    setProjectId(crypto.randomUUID());
+    setProjectName("LEVO Project");
     setPlateCount(1);
     setSelectedPlate(0);
     setCanvasMode("prepare");
@@ -1382,7 +1465,7 @@ export default function SlicerClient() {
   ) : null, [SettingsPanel, setEditorSettings, settings]);
 
   const motionPanel = useMemo(() => SettingsPanel ? (
-    <SettingsPanel settings={settings} setSettings={setEditorSettings} embedded only={{ builder: "TabPrinter::build_kinematics_page" }} />
+    <SettingsPanel settings={settings} setSettings={setEditorSettings} embedded only={{ builder: "TabPrinter::build_fff" }} />
   ) : null, [SettingsPanel, setEditorSettings, settings]);
 
   const filamentPanel = useMemo(() => SettingsPanel ? ((filamentSettings: SlicerSettings, setFilamentSettings: Dispatch<SetStateAction<SlicerSettings>>) => (
@@ -1410,7 +1493,7 @@ export default function SlicerClient() {
       setUpdateAction("idle");
     }
   }, [t.actionUnavailable, t.updatingApp, updateAction]);
-  const sheetTitle = sheet === "about" ? t.about : sheet === "print" ? t.printExport : sheet === "connect" ? t.connectTitle : t.settings;
+  const sheetTitle = sheet === "about" ? t.about : sheet === "projects" ? t.projects : sheet === "print" ? t.printExport : sheet === "connect" ? t.connectTitle : t.settings;
 
   return (
     <main className="studio-app" dir={locale === "ar" ? "rtl" : "ltr"}>
@@ -1424,6 +1507,7 @@ export default function SlicerClient() {
         <div className="studio-actions">
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
+          <button onClick={() => void openProjects()} title={t.projects}><Icon name="save"/><span>{t.projects}</span></button>
           {!nativeEnvironment.native && <a className="app-download-action" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
           {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
@@ -1451,7 +1535,7 @@ export default function SlicerClient() {
               motionPanel={motionPanel}
               filamentPanel={filamentPanel}
               panels={EDITOR_PANELS}
-              features={{ warmup: false, logs: false }}
+              features={{ warmup: true, logs: false }}
               defaultExtruderColors={["#303438", "#f3f4f4", "#9ad51f", "#3a8dff"]}
               onEvent={handleEvent}
               onSliced={(payload) => handleSliced(payload as SlicePayload)}
@@ -1533,6 +1617,12 @@ export default function SlicerClient() {
             <button className="advanced-button" onClick={() => { setSheet(null); setSidebarOpen(true); }}><span><Icon name="settings"/><b>{t.advanced}</b><small>{t.advancedHelp}</small></span><Icon name="layers"/></button>
             <p className="file-limit">{t.fileLimit}</p>
             <button className="sheet-done" onClick={() => setSheet(null)}>{t.apply}</button>
+          </div> : sheet === "projects" ? <div className="sheet-body projects-body">
+            {savedProjects.length ? savedProjects.map((project) => <article className="project-row" key={project.id}>
+              <div><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString(locale === "ar" ? "ar-IQ" : "en")}</small><span>{project.files.length} {t.objects} · {t.autosaved}</span></div>
+              <button onClick={() => void resumeStoredProject(project.id)}>{t.resumeProject}</button>
+              <button className="danger" onClick={() => void removeStoredProject(project.id)}>{t.deleteProject}</button>
+            </article>) : <p className="projects-empty">{t.noProjects}</p>}
           </div> : sheet === "print" ? <div className="sheet-body print-body">
             <div className="print-ready-card"><span><Icon name="check"/></span><div><strong>{t.printReady}</strong><small>{t.printReadyHelp}</small></div></div>
             <div className="print-action-grid">

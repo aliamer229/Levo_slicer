@@ -1,0 +1,54 @@
+export interface StoredLevoProject {
+  id: string;
+  name: string;
+  updatedAt: number;
+  files: File[];
+  profileId: string;
+  quality: string;
+  strength: string;
+  support: boolean;
+}
+
+const DB_NAME = "levo-studio-projects";
+const STORE = "projects";
+
+function database() {
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: "id" });
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function transact<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>) {
+  const db = await database();
+  try {
+    return await new Promise<T>((resolve, reject) => {
+      const tx = db.transaction(STORE, mode);
+      const request = run(tx.objectStore(STORE));
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  } finally { db.close(); }
+}
+
+export function saveStoredProject(project: StoredLevoProject) {
+  return transact("readwrite", (store) => store.put(project));
+}
+
+export function loadStoredProject(id: string) {
+  return transact<StoredLevoProject | undefined>("readonly", (store) => store.get(id));
+}
+
+export async function listStoredProjects() {
+  const projects = await transact<StoredLevoProject[]>("readonly", (store) => store.getAll());
+  return projects.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+export function deleteStoredProject(id: string) {
+  return transact("readwrite", (store) => store.delete(id));
+}

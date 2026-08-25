@@ -205,10 +205,11 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   assert.match(androidPlugin, /@CapacitorPlugin\(name = "LevoPrinter"\)/);
   assert.match(androidActivity, /registerPlugin\(LevoPrinterPlugin\.class\)/);
 
-  for (const nativeSource of [iosPlugin, androidPlugin]) {
-    assert.match(nativeSource, /"lanConnection"[^\n]+false/);
-    assert.match(nativeSource, /"startPrint"[^\n]+false/);
-  }
+  assert.match(iosPlugin, /"lanConnection"[^\n]+false/);
+  assert.match(androidPlugin, /"lanConnection"[^\n]+true/);
+  assert.match(androidPlugin, /requiresTrust/);
+  assert.match(androidPlugin, /certificateFingerprint/);
+  for (const nativeSource of [iosPlugin, androidPlugin]) assert.match(nativeSource, /"startPrint"[^\n]+false/);
 });
 
 test("local printer addresses are restricted to private LAN ranges", async () => {

@@ -32,6 +32,9 @@ export interface LevoPrinterStatus {
   nozzleTemperature?: number;
   bedTemperature?: number;
   error?: string;
+  requiresTrust?: boolean;
+  certificateFingerprint?: string;
+  transportVerified?: boolean;
 }
 
 export interface LevoPrinterConnection {
@@ -39,6 +42,7 @@ export interface LevoPrinterConnection {
   accessCode: string;
   serial?: string;
   remember: boolean;
+  trustedFingerprint?: string;
 }
 
 export interface LevoPrintJobMetadata {
@@ -167,7 +171,12 @@ export async function connectNativePrinter(options: LevoPrinterConnection) {
   if (accessCode.length < 6 || accessCode.length > 32) throw new Error("The printer access code is invalid.");
   const serial = options.serial?.trim();
   if (!serial || !/^[a-z0-9_-]{6,64}$/i.test(serial)) throw new Error("Enter the printer serial number shown on its Device screen.");
-  return requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false });
+  const first = await requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false });
+  if (!first.requiresTrust || !first.certificateFingerprint) return first;
+  const grouped = first.certificateFingerprint.match(/.{1,2}/g)?.join(":") ?? first.certificateFingerprint;
+  const approved = window.confirm(`Verify this printer certificate fingerprint:\n\n${grouped}\n\nOnly continue if the IP and serial match the printer in front of you.`);
+  if (!approved) throw new Error("Printer certificate approval was cancelled.");
+  return requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false, trustedFingerprint: first.certificateFingerprint });
 }
 
 export async function disconnectNativePrinter() {
