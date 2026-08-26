@@ -165,7 +165,7 @@ test("verified profiles and explicit capability boundaries stay present", async 
     assert.ok(engine.includes(`id: "${id}"`), `boundary tool ${id} is missing`);
   }
   assert.match(engine, /Auto arrange[^\n]+Not implemented/);
-  assert.match(app, /Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization/);
+  assert.match(app, /Direct cloud printing still requires official Bambu Lab partner authorization/);
 });
 
 test("web, iOS, and Android share one capability-gated printer connection surface", async () => {
@@ -182,7 +182,7 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   const mobilePackage = JSON.parse(mobilePackageText);
 
   assert.match(app, /\["lan", "cloud", "usb"\]/);
-  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.1\.0\.apk/);
+  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.2\.0\.apk/);
   assert.match(app, /© 2026 LEVONIS/);
   assert.match(app, /nativeEnvironment\.capabilities\.lanConnection/);
   assert.match(app, /required\.packagePrintJob/);
@@ -209,7 +209,11 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   assert.match(androidPlugin, /"lanConnection"[^\n]+true/);
   assert.match(androidPlugin, /requiresTrust/);
   assert.match(androidPlugin, /certificateFingerprint/);
-  for (const nativeSource of [iosPlugin, androidPlugin]) assert.match(nativeSource, /"startPrint"[^\n]+false/);
+  assert.match(iosPlugin, /"startPrint"[^\n]+false/);
+  assert.match(androidPlugin, /"startPrint"[^\n]+true/);
+  assert.match(androidPlugin, /LevoMqttClient/);
+  assert.match(androidPlugin, /LevoFtpsClient/);
+  assert.match(androidPlugin, /"command", "gcode_file"/);
 });
 
 test("local printer addresses are restricted to private LAN ranges", async () => {

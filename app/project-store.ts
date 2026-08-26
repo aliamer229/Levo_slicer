@@ -1,3 +1,5 @@
+import type { SlicerSettings } from "three-slicer";
+
 export interface StoredLevoProject {
   id: string;
   name: string;
@@ -7,6 +9,10 @@ export interface StoredLevoProject {
   quality: string;
   strength: string;
   support: boolean;
+  settings?: SlicerSettings;
+  objectCount?: number;
+  plateCount?: number;
+  snapshotVersion?: 2;
 }
 
 const DB_NAME = "levo-studio-projects";

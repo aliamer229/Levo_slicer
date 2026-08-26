@@ -4,6 +4,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { SlicerSettings } from "three-slicer";
 import type { SettingsPanelProps } from "three-slicer/components";
+import { uiTree } from "three-slicer/data";
 import type { ViewportEvent, ViewportProps } from "three-slicer/viewer";
 import { FILE_PICKER_ACCEPT, extractModelArchive, fileExtension, normalizeModelFile } from "./archive-import";
 import { registerExtendedModelLoaders } from "./model-loaders";
@@ -26,7 +27,6 @@ import { deleteStoredProject, listStoredProjects, loadStoredProject, saveStoredP
 
 type Locale = "ar" | "en";
 type Sheet = "setup" | "projects" | "print" | "connect" | "about" | null;
-type ProfileId = "bbl-x2d-04" | "bbl-h2d-04";
 type QualityId = "fine" | "standard" | "draft";
 type StrengthId = "light" | "standard" | "strong";
 type EditorStatus = "loading" | "editing" | "slicing" | "ready" | "error";
@@ -35,7 +35,7 @@ type ConnectionMode = "lan" | "cloud" | "usb";
 type LanAction = "idle" | "discovering" | "connecting" | "transferring";
 
 interface PrinterProfile {
-  id: ProfileId;
+  id: string;
   shortName: string;
   model: string;
   presetName: string;
@@ -44,6 +44,7 @@ interface PrinterProfile {
   bed: string;
   bedWidth: number;
   bedDepth: number;
+  bedHeight: number;
   materialPreset: string;
   processPresets: Record<QualityId, string>;
 }
@@ -91,7 +92,7 @@ interface ImportProgressState {
 
 const GCODE_ARTIFACTS = new Map<symbol, Map<number, string>>();
 
-const PROFILES: Record<ProfileId, PrinterProfile> = {
+const PROFILES = {
   "bbl-x2d-04": {
     id: "bbl-x2d-04",
     shortName: "X2D",
@@ -102,6 +103,7 @@ const PROFILES: Record<ProfileId, PrinterProfile> = {
     bed: "256 × 256 × 260 mm",
     bedWidth: 256,
     bedDepth: 256,
+    bedHeight: 260,
     materialPreset: "Bambu PLA Basic @BBL X2D 0.4 nozzle",
     processPresets: {
       fine: "0.12mm High Quality @BBL X2D",
@@ -119,6 +121,7 @@ const PROFILES: Record<ProfileId, PrinterProfile> = {
     bed: "350 × 320 × 325 mm",
     bedWidth: 350,
     bedDepth: 320,
+    bedHeight: 325,
     materialPreset: "Bambu PLA Basic @BBL H2D",
     processPresets: {
       fine: "0.12mm Fine @BBL H2D",
@@ -126,7 +129,86 @@ const PROFILES: Record<ProfileId, PrinterProfile> = {
       draft: "0.24mm Standard @BBL H2D",
     },
   },
-};
+  "bbl-h2c-04": {
+    id: "bbl-h2c-04", shortName: "H2C", model: "Bambu Lab H2C",
+    presetName: "Bambu Lab H2C 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "330 × 320 × 325 mm", bedWidth: 330, bedDepth: 320, bedHeight: 325,
+    materialPreset: "Bambu PLA Basic @BBL H2C",
+    processPresets: { fine: "0.12mm High Quality @BBL H2C", standard: "0.20mm Standard @BBL H2C", draft: "0.24mm Standard @BBL H2C" },
+  },
+  "bbl-h2s-04": {
+    id: "bbl-h2s-04", shortName: "H2S", model: "Bambu Lab H2S",
+    presetName: "Bambu Lab H2S 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "340 × 320 × 340 mm", bedWidth: 340, bedDepth: 320, bedHeight: 340,
+    materialPreset: "Bambu PLA Basic @BBL H2S",
+    processPresets: { fine: "0.12mm High Quality @BBL H2S", standard: "0.20mm Standard @BBL H2S", draft: "0.24mm Standard @BBL H2S" },
+  },
+  "bbl-h2dp-04": {
+    id: "bbl-h2dp-04", shortName: "H2D Pro", model: "Bambu Lab H2D Pro",
+    presetName: "Bambu Lab H2D Pro 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "350 × 320 × 325 mm", bedWidth: 350, bedDepth: 320, bedHeight: 325,
+    materialPreset: "Bambu PLA Basic @BBL H2DP",
+    processPresets: { fine: "0.12mm Fine @BBL H2DP", standard: "0.20mm Standard @BBL H2DP", draft: "0.24mm Standard @BBL H2DP" },
+  },
+  "bbl-p2s-04": {
+    id: "bbl-p2s-04", shortName: "P2S", model: "Bambu Lab P2S",
+    presetName: "Bambu Lab P2S 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 256 mm", bedWidth: 256, bedDepth: 256, bedHeight: 256,
+    materialPreset: "Bambu PLA Basic @BBL P2S",
+    processPresets: { fine: "0.12mm High Quality @BBL P2S", standard: "0.20mm Standard @BBL P2S", draft: "0.24mm Standard @BBL P2S" },
+  },
+  "bbl-p1s-04": {
+    id: "bbl-p1s-04", shortName: "P1S", model: "Bambu Lab P1S",
+    presetName: "Bambu Lab P1S 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 250 mm", bedWidth: 256, bedDepth: 256, bedHeight: 250,
+    materialPreset: "Bambu PLA Basic @BBL X1C",
+    processPresets: { fine: "0.12mm Fine @BBL X1C", standard: "0.20mm Standard @BBL X1C", draft: "0.24mm Draft @BBL X1C" },
+  },
+  "bbl-p1p-04": {
+    id: "bbl-p1p-04", shortName: "P1P", model: "Bambu Lab P1P",
+    presetName: "Bambu Lab P1P 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 250 mm", bedWidth: 256, bedDepth: 256, bedHeight: 250,
+    materialPreset: "Bambu PLA Basic @BBL P1P",
+    processPresets: { fine: "0.12mm Fine @BBL P1P", standard: "0.20mm Standard @BBL P1P", draft: "0.24mm Draft @BBL P1P" },
+  },
+  "bbl-x1c-04": {
+    id: "bbl-x1c-04", shortName: "X1C", model: "Bambu Lab X1 Carbon",
+    presetName: "Bambu Lab X1 Carbon 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 250 mm", bedWidth: 256, bedDepth: 256, bedHeight: 250,
+    materialPreset: "Bambu PLA Basic @BBL X1C",
+    processPresets: { fine: "0.12mm Fine @BBL X1C", standard: "0.20mm Standard @BBL X1C", draft: "0.24mm Draft @BBL X1C" },
+  },
+  "bbl-x1-04": {
+    id: "bbl-x1-04", shortName: "X1", model: "Bambu Lab X1",
+    presetName: "Bambu Lab X1 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 250 mm", bedWidth: 256, bedDepth: 256, bedHeight: 250,
+    materialPreset: "Bambu PLA Basic @BBL X1",
+    processPresets: { fine: "0.12mm Fine @BBL X1C", standard: "0.20mm Standard @BBL X1C", draft: "0.24mm Draft @BBL X1C" },
+  },
+  "bbl-x1e-04": {
+    id: "bbl-x1e-04", shortName: "X1E", model: "Bambu Lab X1E",
+    presetName: "Bambu Lab X1E 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 250 mm", bedWidth: 256, bedDepth: 256, bedHeight: 250,
+    materialPreset: "Bambu PLA Basic @BBL X1C",
+    processPresets: { fine: "0.12mm Fine @BBL X1C", standard: "0.20mm Standard @BBL X1C", draft: "0.24mm Draft @BBL X1C" },
+  },
+  "bbl-a1-04": {
+    id: "bbl-a1-04", shortName: "A1", model: "Bambu Lab A1",
+    presetName: "Bambu Lab A1 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "256 × 256 × 256 mm", bedWidth: 256, bedDepth: 256, bedHeight: 256,
+    materialPreset: "Bambu PLA Basic @BBL A1",
+    processPresets: { fine: "0.12mm Fine @BBL A1", standard: "0.20mm Standard @BBL A1", draft: "0.24mm Draft @BBL A1" },
+  },
+  "bbl-a1m-04": {
+    id: "bbl-a1m-04", shortName: "A1 mini", model: "Bambu Lab A1 mini",
+    presetName: "Bambu Lab A1 mini 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "180 × 180 × 180 mm", bedWidth: 180, bedDepth: 180, bedHeight: 180,
+    materialPreset: "Bambu PLA Basic @BBL A1M",
+    processPresets: { fine: "0.12mm Fine @BBL A1M", standard: "0.20mm Standard @BBL A1M", draft: "0.24mm Draft @BBL A1M" },
+  },
+} as const satisfies Record<string, PrinterProfile>;
+
+type ProfileId = keyof typeof PROFILES;
 
 const QUALITY: Record<QualityId, { label: string; layer: number }> = {
   fine: { label: "Fine", layer: 0.12 },
@@ -162,7 +244,7 @@ const EDITOR_PANELS = {
 } as unknown as NonNullable<ViewportProps["panels"]>;
 
 const EDITOR_SHADOW_CSS = `
-  :host { color-scheme: dark; }
+  :host { color-scheme: dark; background: #111518 !important; color: #dfe5e8 !important; }
   .app-shell { direction: ltr; background: #111518; color: #dfe5e8; }
   .topbar, .left-rail { background: #151a1d; border-color: #2d353a; }
   .tb-btn, .tb-icon, .tb-tabs, .tb-tabs button { background: #20262a; border-color: #343d43; border-radius: 6px; color: #d5dde1; }
@@ -174,14 +256,30 @@ const EDITOR_SHADOW_CSS = `
   .sidebar-scroll, .side-bottom { background: #181d20; }
   .side-bottom { border-color: #343d43; }
   .side-card { background: #21272b; border-color: #343d43; border-radius: 7px; color: #dfe5e8; box-shadow: none; }
+  .settings-book { display: flex; flex-direction: column; gap: 6px; }
+  .settings-book > details { border: 1px solid #343d43; border-radius: 6px; overflow: hidden; background: #181d20; }
+  .settings-book > details > summary { min-height: 38px; padding: 9px 11px; cursor: pointer; color: #e7ecef; font-weight: 650; background: #20262a; list-style-position: inside; }
+  .settings-book > details[open] > summary { color: #b8e85b; border-bottom: 1px solid #343d43; }
   .settings-panel, .settings-panel .sp-top, .settings-panel .sp-body, .settings-panel .page,
   .settings-panel .group, .settings-panel .row, .sc-fold-body, .slice-menu,
   .slice-menu button { background: #181d20 !important; color: #dfe5e8 !important; border-color: #343d43 !important; }
+  .settings-panel section, .settings-panel h2, .settings-panel h3,
+  .settings-panel .sp-pages, .settings-panel .sp-modes, .settings-panel .sp-builder,
+  .settings-panel .inputwrap, .settings-panel .widget-cell { background: transparent !important; color: #dfe5e8 !important; }
+  .settings-panel .row { border-bottom-color: #30383d !important; }
+  .settings-panel .sp-pages button, .settings-panel .sp-modes button,
+  .settings-panel .bse-modes button, .settings-panel .reset-btn {
+    background: #20262a !important; color: #cfd7db !important; border-color: #3b454b !important;
+  }
+  .settings-panel .sp-pages button.on, .settings-panel .sp-modes button.on,
+  .settings-panel .bse-modes button.on { background: #91c720 !important; color: #142008 !important; border-color: #91c720 !important; }
   .settings-panel h2, .settings-panel h3, .settings-panel .lbl, .settings-panel label,
   .settings-panel summary, .settings-panel .key { color: #dfe5e8 !important; }
   .settings-panel .key, .settings-panel .muted, .settings-panel small { color: #9ca8ae !important; }
   .settings-panel input:not([type="checkbox"]):not([type="color"]), .settings-panel select,
   .settings-panel textarea, .settings-panel button { background: #14181b !important; color: #edf1f3 !important; border-color: #3b454b !important; }
+  .settings-panel input[type="checkbox"], .settings-panel input[type="range"] { accent-color: #91c720; }
+  .settings-panel option { background: #14181b; color: #edf1f3; }
   .sc-head, .sc-info b, .obj-list2 .obj-name, .side-card .view-type-row, .side-card .slice-layer label, .side-card .grad-title, .sc-fold>summary b { color: #e7ecef; }
   .sc-info, .sc-note, .fil-mat, .side-card .role-legend, .side-card .slice-travel, .sc-fold>summary { color: #9ca8ae; }
   .side-card select, .side-card input:not([type="range"]):not([type="checkbox"]):not([type="color"]), .side-card .obj-ext { background: #14181b; color: #edf1f3; border-color: #3b454b; }
@@ -215,11 +313,13 @@ const TEXT = {
     title: "LEVO Studio",
     newProject: "مشروع جديد",
     projects: "المشاريع",
+    projectName: "اسم المشروع",
     autosaved: "محفوظ تلقائيًا",
     resumeProject: "فتح واستئناف",
     deleteProject: "حذف المشروع",
     noProjects: "لا توجد مشاريع محفوظة بعد.",
     printer: "الطابعة",
+    profilesReady: "ملفات الطابعات الأصلية مضمنة وتُطبّق محليًا فور الاختيار.",
     settings: "الإعدادات",
     signIn: "تسجيل الدخول",
     signOut: "تسجيل الخروج",
@@ -262,7 +362,7 @@ const TEXT = {
     appBridgeReady: "جسر الطابعة المحلي جاهز",
     appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
     downloadAndroid: "تحميل تطبيق LEVO Studio",
-    downloadAndroidHelp: "APK رسمي لأجهزة Android · الإصدار 1.1.0",
+    downloadAndroidHelp: "APK رسمي لأجهزة Android · الإصدار 1.2.0",
     installAndroid: "تنزيل APK",
     updateAvailable: "تحديث جديد",
     updateNow: "تحديث الآن",
@@ -285,10 +385,10 @@ const TEXT = {
     noPrintersFound: "لم يعثر التطبيق على طابعة. أدخل IP وAccess Code يدويًا.",
     connectedPrinter: "متصل",
     selectDiscoveredPrinter: "اختيار هذه الطابعة",
-    lanSecurity: "لا تُحفظ بيانات الطابعة في الموقع أو المتصفح. عند اختيار الحفظ، يخزنها التطبيق داخل Keychain/Keystore فقط.",
-    lanRequirements: "فعّل LAN Only ثم Developer Mode من شاشة X2D، واسمح لتطبيق LEVO بالوصول إلى الشبكة المحلية.",
+    lanSecurity: "لا تُرسل بيانات الطابعة إلى الموقع أو السحابة. يحتفظ جسر التطبيق بـ Access Code في الذاكرة فقط حتى قطع الاتصال.",
+    lanRequirements: "فعّل LAN Only أو Developer Mode من شاشة الطابعة، ثم أدخل IP والرقم التسلسلي وAccess Code.",
     lanUnavailableWeb: "الاتصال المحلي غير مدعوم من Safari. افتح المشروع نفسه داخل تطبيق LEVO لاستخدام IP.",
-    lanBridgeIncomplete: "التطبيق موجود، لكن إصدار جسر الطابعة لا يتيح الاتصال بعد.",
+    lanBridgeIncomplete: "حدّث التطبيق إلى 1.2.0 لتفعيل جسر MQTT/FTPS المحلي.",
     sendLanPrint: "إرسال وبدء الطباعة",
     sendingLanPrint: "جارٍ نقل ملف الطباعة…",
     lanPrintQueued: "استلمت الطابعة المهمة وأكد التطبيق إدراجها للطباعة.",
@@ -363,7 +463,7 @@ const TEXT = {
     advancedHelp: "تظهر داخل لوحة المحرر الكاملة.",
     close: "إغلاق",
     directPrint: "الطباعة المباشرة",
-    directPrintHelp: "التصدير إلى Bambu Connect وBambu Studio يعمل. الطباعة السحابية المباشرة غير مفعلة حتى تمنح Bambu Lab اعتماد الشريك ووثائق التفويض الرسمية.",
+    directPrintHelp: "الطباعة المحلية عبر IP متاحة في تطبيق Android 1.2.0. الطباعة السحابية المباشرة تبقى بحاجة إلى اعتماد رسمي من Bambu Lab.",
     realEditor: "محرر Plate حقيقي",
     realEditorHelp: "تحريك، دوران، تكبير وتصغير، حذف، تكرار، تقسيم، Undo/Redo، دعم عدة Plates وحفظ 3MF.",
     layers: "طبقات",
@@ -377,11 +477,13 @@ const TEXT = {
     title: "LEVO Studio",
     newProject: "New project",
     projects: "Projects",
+    projectName: "Project name",
     autosaved: "Auto-saved",
     resumeProject: "Open and resume",
     deleteProject: "Delete project",
     noProjects: "No saved projects yet.",
     printer: "Printer",
+    profilesReady: "Verified printer profiles are bundled and applied locally as soon as you select one.",
     settings: "Settings",
     signIn: "Sign in",
     signOut: "Sign out",
@@ -424,7 +526,7 @@ const TEXT = {
     appBridgeReady: "Local printer bridge ready",
     appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
     downloadAndroid: "Download LEVO Studio",
-    downloadAndroidHelp: "Official Android APK · version 1.1.0",
+    downloadAndroidHelp: "Official Android APK · version 1.2.0",
     installAndroid: "Download APK",
     updateAvailable: "Update available",
     updateNow: "Update now",
@@ -447,10 +549,10 @@ const TEXT = {
     noPrintersFound: "No printer was found. Enter the IP and Access Code manually.",
     connectedPrinter: "Connected",
     selectDiscoveredPrinter: "Select this printer",
-    lanSecurity: "Printer credentials are never stored by the website or browser. If enabled, the app stores them only in Keychain/Keystore.",
-    lanRequirements: "Enable LAN Only and Developer Mode on the X2D, then allow LEVO to access the local network.",
+    lanSecurity: "Printer credentials never leave the device or go to the cloud. The bridge keeps the Access Code in memory only until disconnect.",
+    lanRequirements: "Enable LAN Only or Developer Mode on the printer, then enter its IP, serial and LAN Access Code.",
     lanUnavailableWeb: "Safari cannot make this local connection. Open the same project in the LEVO app to use IP printing.",
-    lanBridgeIncomplete: "The app is present, but this printer-bridge build does not enable connection yet.",
+    lanBridgeIncomplete: "Update to app 1.2.0 to enable the local MQTT/FTPS printer bridge.",
     sendLanPrint: "Send and start print",
     sendingLanPrint: "Transferring the print job…",
     lanPrintQueued: "The printer acknowledged the job and the app confirmed it was queued.",
@@ -525,7 +627,7 @@ const TEXT = {
     advancedHelp: "Shown inside the complete editor panel.",
     close: "Close",
     directPrint: "Direct print",
-    directPrintHelp: "Export to Bambu Connect and Bambu Studio works. Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization and documentation.",
+    directPrintHelp: "Direct local-IP printing is available in Android app 1.2.0. Direct cloud printing still requires official Bambu Lab partner authorization.",
     realEditor: "Real plate editor",
     realEditorHelp: "Move, rotate, scale, delete, duplicate, split, undo/redo, multi-plate editing and 3MF save.",
     layers: "layers",
@@ -600,16 +702,41 @@ function FileSelectControl({
   );
 }
 
+function SettingsBook({
+  Panel,
+  builder,
+  settings,
+  setSettings,
+}: {
+  Panel: React.ComponentType<SettingsPanelProps>;
+  builder: string;
+  settings: SlicerSettings;
+  setSettings: Dispatch<SetStateAction<SlicerSettings>>;
+}) {
+  const pages = uiTree[builder] ?? [];
+  const [loadedPages, setLoadedPages] = useState<Set<number>>(() => new Set([0]));
+  return <div className="settings-book">{pages.map((page, index) => (
+    <details
+      key={`${builder}:${page.page}:${index}`}
+      defaultOpen={index === 0}
+      onToggle={(event) => {
+        if (!event.currentTarget.open || loadedPages.has(index)) return;
+        setLoadedPages((current) => new Set(current).add(index));
+      }}
+    >
+      <summary>{page.page}</summary>
+      {loadedPages.has(index) && <Panel settings={settings} setSettings={setSettings} embedded only={{ builder, page: page.page }} />}
+    </details>
+  ))}</div>;
+}
+
 function fallbackSettings(profile: PrinterProfile): SlicerSettings {
-  const isX2D = profile.id === "bbl-x2d-04";
-  const width = isX2D ? 256 : 350;
-  const depth = isX2D ? 256 : 320;
   return {
     printer_model: profile.model,
     printer_settings_id: profile.presetName,
     nozzle_diameter: [profile.nozzle],
-    printable_area: [[0, 0], [width, 0], [width, depth], [0, depth]],
-    printable_height: isX2D ? 260 : 325,
+    printable_area: [[0, 0], [profile.bedWidth, 0], [profile.bedWidth, profile.bedDepth], [0, profile.bedDepth]],
+    printable_height: profile.bedHeight,
     layer_height: 0.2,
     filament_type: ["PLA"],
     filament_diameter: [1.75],
@@ -646,7 +773,7 @@ async function loadVerifiedProfile(profile: PrinterProfile, quality: QualityId, 
     enable_support: support,
     support_type: "normal(auto)",
   };
-  if (profile.id === "bbl-x2d-04") combined.printable_height = 260;
+  combined.printable_height = profile.bedHeight;
   return { settings: combined, machine: lockedMachine, machineKeys: [...api.printerKeys, "printer_model", "printer_settings_id"] };
 }
 
@@ -763,6 +890,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   const [workspaceKey, setWorkspaceKey] = useState(0);
   const [projectId, setProjectId] = useState(() => crypto.randomUUID());
   const [projectName, setProjectName] = useState("LEVO Project");
+  const [lastAutosavedAt, setLastAutosavedAt] = useState<number | null>(null);
   const [savedProjects, setSavedProjects] = useState<StoredLevoProject[]>([]);
   const [Viewport, setViewport] = useState<React.ComponentType<ViewportProps> | null>(null);
   const [SettingsPanel, setSettingsPanel] = useState<React.ComponentType<SettingsPanelProps> | null>(null);
@@ -776,8 +904,10 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   const profileRequestRef = useRef(0);
   const progressFrameRef = useRef<number | null>(null);
   const pendingProgressRef = useRef(0);
-  const exportIntentRef = useRef<"bambu-handy" | "native-lan" | null>(null);
+  const exportIntentRef = useRef<"bambu-handy" | "autosave" | null>(null);
   const exportIntentTimerRef = useRef<number | null>(null);
+  const suppressNextExportNoticeRef = useRef(false);
+  const restoredSettingsRef = useRef<{ key: string; settings: SlicerSettings } | null>(null);
   const machineRef = useRef<SlicerSettings>(fallbackSettings(PROFILES["bbl-x2d-04"]));
   const machineKeysRef = useRef<string[]>([]);
   const projectFilesRef = useRef<File[]>([]);
@@ -823,7 +953,9 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
         if (profileRequestRef.current !== requestId) return;
         machineRef.current = loaded.machine;
         machineKeysRef.current = loaded.machineKeys;
-        setSettings(loaded.settings);
+        const restored = restoredSettingsRef.current?.key === requestedPresetKey ? restoredSettingsRef.current.settings : null;
+        if (restored) restoredSettingsRef.current = null;
+        setSettings(restored ?? loaded.settings);
         GCODE_ARTIFACTS.get(artifactId)?.clear();
         setLoadedPresetKey(requestedPresetKey);
         setNotice("");
@@ -853,7 +985,10 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   useEffect(() => {
     if (!printerStatus.connected || !nativeEnvironment.capabilities.telemetry) return;
     const refresh = () => {
-      getNativePrinterStatus().then(setPrinterStatus)
+      getNativePrinterStatus().then((next) => {
+        setPrinterStatus(next);
+        if (next.error) setLanMessage(next.error);
+      })
         .catch(() => undefined);
     };
     const timer = window.setInterval(refresh, 5_000);
@@ -871,42 +1006,52 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     GCODE_ARTIFACTS.delete(artifactId);
     if (arrangeTimerRef.current !== null) window.clearTimeout(arrangeTimerRef.current);
     if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
-    if (progressFrameRef.current !== null) window.cancelAnimationFrame(progressFrameRef.current);
+    if (progressFrameRef.current !== null) window.clearTimeout(progressFrameRef.current);
     if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
   }, [artifactId]);
 
   useEffect(() => {
     const container = viewportMountRef.current;
     if (!container) return;
-    let attachedRoot: ShadowRoot | null = null;
+    const shadowObservers = new Map<ShadowRoot, MutationObserver>();
 
-    const detach = () => {
-      attachedRoot = null;
-    };
-
-    const attach = () => {
-      const host = findShadowHost(container);
-      const root = host?.shadowRoot ?? null;
-      if (!host || !root || root === attachedRoot) return;
-      detach();
-      shadowHostRef.current = host;
-      host.setAttribute("data-levo-sidebar", sidebarOpenRef.current ? "open" : "closed");
+    const themeRoot = (root: ShadowRoot) => {
       let style = root.querySelector<HTMLStyleElement>("style[data-levo-mobile]");
       if (!style) {
         style = document.createElement("style");
         style.dataset.levoMobile = "";
         root.append(style);
       }
-      style.textContent = EDITOR_SHADOW_CSS;
-      attachedRoot = root;
+      if (style.textContent !== EDITOR_SHADOW_CSS) style.textContent = EDITOR_SHADOW_CSS;
+      for (const element of root.querySelectorAll<HTMLElement>("*")) {
+        if (element.shadowRoot) themeRoot(element.shadowRoot);
+      }
+      if (shadowObservers.has(root)) return;
+      const observer = new MutationObserver(() => themeRoot(root));
+      observer.observe(root, { childList: true, subtree: true });
+      shadowObservers.set(root, observer);
+    };
+
+    const attach = () => {
+      const host = findShadowHost(container);
+      const root = host?.shadowRoot ?? null;
+      if (!host || !root) return;
+      shadowHostRef.current = host;
+      host.setAttribute("data-levo-sidebar", sidebarOpenRef.current ? "open" : "closed");
+      themeRoot(root);
     };
 
     attach();
     const observer = new MutationObserver(attach);
     observer.observe(container, { childList: true, subtree: true });
+    // attachShadow itself is not a DOM mutation. A light periodic scan catches
+    // settings panels whose open shadow root is attached after their host mounts.
+    const scanTimer = window.setInterval(attach, 500);
     return () => {
       observer.disconnect();
-      detach();
+      window.clearInterval(scanTimer);
+      for (const nestedObserver of shadowObservers.values()) nestedObserver.disconnect();
+      shadowObservers.clear();
       if (shadowHostRef.current && container.contains(shadowHostRef.current)) shadowHostRef.current = null;
     };
   }, [Viewport, workspaceKey]);
@@ -1085,24 +1230,6 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     }
   }, [dispatchFilesToEngine, objects, selectedPlate, t.emptyFile, t.importFailed, t.imported, t.importing, t.zipAnalyzing]);
 
-  useEffect(() => {
-    if (!objects.length || !projectFilesRef.current.length) return;
-    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = window.setTimeout(() => {
-      autosaveTimerRef.current = null;
-      void saveStoredProject({
-        id: projectId,
-        name: projectName,
-        updatedAt: Date.now(),
-        files: projectFilesRef.current,
-        profileId,
-        quality,
-        strength,
-        support,
-      });
-    }, 900);
-  }, [objects, profileId, projectId, projectName, quality, settings, strength, support]);
-
   const openProjects = useCallback(async () => {
     setSavedProjects(await listStoredProjects().catch(() => []));
     setSheet("projects");
@@ -1111,21 +1238,32 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   const resumeStoredProject = useCallback(async (id: string) => {
     const saved = await loadStoredProject(id);
     if (!saved) return;
+    const restoredProfile = saved.profileId in PROFILES ? saved.profileId as ProfileId : "bbl-x2d-04";
+    const restoredQuality = saved.quality in QUALITY ? saved.quality as QualityId : "standard";
+    const restoredStrength = saved.strength in STRENGTH ? saved.strength as StrengthId : "standard";
+    const restoredSupport = Boolean(saved.support);
+    const restoredKey = `${restoredProfile}:${restoredQuality}:${restoredStrength}:${restoredSupport}`;
+    profileRequestRef.current += 1;
+    restoredSettingsRef.current = saved.settings && restoredKey !== requestedPresetKey
+      ? { key: restoredKey, settings: saved.settings }
+      : null;
     GCODE_ARTIFACTS.get(artifactId)?.clear();
     projectFilesRef.current = saved.files;
     setProjectId(saved.id);
     setProjectName(saved.name);
-    if (saved.profileId in PROFILES) setProfileId(saved.profileId as ProfileId);
-    if (saved.quality in QUALITY) setQuality(saved.quality as QualityId);
-    if (saved.strength in STRENGTH) setStrength(saved.strength as StrengthId);
-    setSupport(saved.support);
+    setProfileId(restoredProfile);
+    setQuality(restoredQuality);
+    setStrength(restoredStrength);
+    setSupport(restoredSupport);
+    if (saved.settings) setSettings(saved.settings);
     setObjects([]);
     setWorkspaceKey((value) => value + 1);
     setSheet(null);
     for (let frame = 0; frame < 5; frame += 1) await nextFrame();
     await dispatchFilesToEngine(saved.files);
+    setLastAutosavedAt(saved.updatedAt);
     setNotice(t.autosaved);
-  }, [artifactId, dispatchFilesToEngine, t.autosaved]);
+  }, [artifactId, dispatchFilesToEngine, requestedPresetKey, t.autosaved]);
 
   const removeStoredProject = useCallback(async (id: string) => {
     await deleteStoredProject(id);
@@ -1143,6 +1281,47 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     setNotice("");
     return true;
   }, [t.actionUnavailable, viewportRoot]);
+
+  const persistProjectFiles = useCallback(async (files: File[], snapshotVersion?: 2) => {
+    const updatedAt = Date.now();
+    await saveStoredProject({
+      id: projectId,
+      name: projectName.trim() || "LEVO Project",
+      updatedAt,
+      files,
+      profileId,
+      quality,
+      strength,
+      support,
+      settings,
+      objectCount: objects.length,
+      plateCount,
+      snapshotVersion,
+    });
+    setLastAutosavedAt(updatedAt);
+  }, [objects.length, plateCount, profileId, projectId, projectName, quality, settings, strength, support]);
+
+  useEffect(() => {
+    if (!objects.length || !projectFilesRef.current.length || importingRef.current || status === "slicing") return;
+    if (autosaveTimerRef.current !== null) window.clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = window.setTimeout(() => {
+      autosaveTimerRef.current = null;
+      if (exportIntentRef.current) return;
+      exportIntentRef.current = "autosave";
+      if (!clickControl("save-project", true)) {
+        exportIntentRef.current = null;
+        void persistProjectFiles(projectFilesRef.current);
+        return;
+      }
+      if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
+      exportIntentTimerRef.current = window.setTimeout(() => {
+        if (exportIntentRef.current !== "autosave") return;
+        exportIntentRef.current = null;
+        exportIntentTimerRef.current = null;
+        void persistProjectFiles(projectFilesRef.current);
+      }, 30_000);
+    }, 2_200);
+  }, [clickControl, objects, persistProjectFiles, profileId, projectName, quality, settings, status, strength, support]);
 
   const discoverLan = useCallback(async () => {
     if (!nativeEnvironment.capabilities.discovery || lanAction !== "idle") return;
@@ -1173,7 +1352,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
       setPrinterStatus(connected);
       if (connected.connected) {
         setLanAccessCode("");
-        setLanMessage(`${t.connectedPrinter}: ${connected.printer?.name ?? connected.printer?.ip ?? lanIp}`);
+        setLanMessage(connected.error ?? `${t.connectedPrinter}: ${connected.printer?.name ?? connected.printer?.ip ?? lanIp}`);
       }
     } catch (reason: unknown) {
       setPrinterStatus({ connected: false });
@@ -1196,7 +1375,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     }
   }, [lanAction, t.actionUnavailable]);
 
-  const transmitNativePrint = useCallback(async (projectBlob: Blob) => {
+  const transmitNativePrint = useCallback(async () => {
     const gcode = GCODE_ARTIFACTS.get(artifactId)?.get(selectedPlate) ?? "";
     if (!gcode) { setLanMessage(t.printNotReady); return; }
     const required = nativeEnvironment.capabilities;
@@ -1206,14 +1385,12 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     }
 
     const baseName = `LEVO-${profile.shortName}-plate-${selectedPlate + 1}`;
-    const project = new File([projectBlob], `${baseName}.3mf`, { type: "model/3mf" });
     const gcodeFile = new File([gcode], `${baseName}.gcode`, { type: "text/x-gcode" });
     setLanAction("transferring");
     setLanTransferProgress(0);
     setLanMessage("");
     try {
       await sendNativePrintJob({
-        project,
         gcode: gcodeFile,
         metadata: {
           name: baseName,
@@ -1240,8 +1417,12 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
       window.clearTimeout(exportIntentTimerRef.current);
       exportIntentTimerRef.current = null;
     }
-    if (intent === "native-lan") {
-      void transmitNativePrint(file);
+    if (intent === "autosave") {
+      const safeName = (projectName.trim() || "LEVO Project").replace(/[^\p{L}\p{N}._-]+/gu, "-");
+      const snapshot = new File([file], `${safeName}.3mf`, { type: "model/3mf", lastModified: Date.now() });
+      projectFilesRef.current = [snapshot];
+      suppressNextExportNoticeRef.current = true;
+      void persistProjectFiles([snapshot], 2);
     } else {
       const phoneFilename = `LEVO-${profile.shortName}-Bambu-Handy.3mf`;
       downloadBlob(file, phoneFilename);
@@ -1249,7 +1430,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
       setNotice(t.handyFileReady);
     }
     return true;
-  }, [profile.shortName, t.handyFileReady, transmitNativePrint]);
+  }, [persistProjectFiles, profile.shortName, projectName, t.handyFileReady]);
 
   const prepareForBambuHandy = useCallback(() => {
     setHandyProjectReady(false);
@@ -1270,20 +1451,8 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
 
   const prepareNativePrint = useCallback(() => {
     if (lanAction !== "idle") return;
-    exportIntentRef.current = "native-lan";
-    if (!clickControl("save-project", true)) {
-      exportIntentRef.current = null;
-      setLanMessage(t.actionUnavailable);
-      return;
-    }
-    if (exportIntentTimerRef.current !== null) window.clearTimeout(exportIntentTimerRef.current);
-    exportIntentTimerRef.current = window.setTimeout(() => {
-      if (exportIntentRef.current !== "native-lan") return;
-      exportIntentRef.current = null;
-      exportIntentTimerRef.current = null;
-      setLanMessage(t.actionUnavailable);
-    }, 30_000);
-  }, [clickControl, lanAction, t.actionUnavailable]);
+    void transmitNativePrint();
+  }, [lanAction, transmitNativePrint]);
 
   const prepareAction = useCallback((testId: string) => {
     if (clickControl(testId, true)) return;
@@ -1400,13 +1569,17 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
       if (!event.value) setProgress(0);
     } else if (event.type === "progress") {
       pendingProgressRef.current = Math.max(0, Math.min(1, event.value));
-      if (progressFrameRef.current === null) progressFrameRef.current = window.requestAnimationFrame(() => {
+      if (progressFrameRef.current === null) progressFrameRef.current = window.setTimeout(() => {
         progressFrameRef.current = null;
         setProgress(pendingProgressRef.current);
-      });
+      }, 160);
     } else if (event.type === "layerCount") {
       setLayerCount(event.value);
     } else if (event.type === "notice") {
+      if (suppressNextExportNoticeRef.current && /^Saved .*3mf project/i.test(event.value)) {
+        suppressNextExportNoticeRef.current = false;
+        return;
+      }
       setNotice(event.value);
     } else if (event.type === "error") {
       setError(event.value);
@@ -1438,6 +1611,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     projectFilesRef.current = [];
     setProjectId(crypto.randomUUID());
     setProjectName("LEVO Project");
+    setLastAutosavedAt(null);
     setPlateCount(1);
     setSelectedPlate(0);
     setCanvasMode("prepare");
@@ -1465,15 +1639,15 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   }, [artifactId, objects.length, t.newConfirm]);
 
   const processPanel = useMemo(() => SettingsPanel ? (
-    <SettingsPanel settings={settings} setSettings={setEditorSettings} embedded only={{ builder: "TabPrint::build" }} />
+    <SettingsBook Panel={SettingsPanel} settings={settings} setSettings={setEditorSettings} builder="TabPrint::build" />
   ) : null, [SettingsPanel, setEditorSettings, settings]);
 
   const motionPanel = useMemo(() => SettingsPanel ? (
-    <SettingsPanel settings={settings} setSettings={setEditorSettings} embedded only={{ builder: "TabPrinter::build_fff" }} />
+    <SettingsBook Panel={SettingsPanel} settings={settings} setSettings={setEditorSettings} builder="TabPrinter::build_fff" />
   ) : null, [SettingsPanel, setEditorSettings, settings]);
 
   const filamentPanel = useMemo(() => SettingsPanel ? ((filamentSettings: SlicerSettings, setFilamentSettings: Dispatch<SetStateAction<SlicerSettings>>) => (
-    <SettingsPanel settings={filamentSettings} setSettings={setFilamentSettings} embedded only={{ builder: "TabFilament::build" }} />
+    <SettingsBook Panel={SettingsPanel} settings={filamentSettings} setSettings={setFilamentSettings} builder="TabFilament::build" />
   )) : null, [SettingsPanel]);
 
   const statusLabel = status === "slicing" ? `${Math.round(progress * 100)}%` : status === "ready" ? `${layerCount || "✓"} ${t.layers}` : t.local;
@@ -1485,6 +1659,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     && nativeEnvironment.capabilities.packagePrintJob
     && nativeEnvironment.capabilities.fileTransfer
     && nativeEnvironment.capabilities.startPrint
+    && printerStatus.fileTransferVerified !== false
     && printReady;
   const installAppUpdate = useCallback(async () => {
     if (updateAction !== "idle") return;
@@ -1505,18 +1680,18 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
         <button className="studio-brand" onClick={() => setSheet("about")} aria-label={t.about}><span>LE</span></button>
         <div className="studio-project">
           <strong>{t.title}</strong>
-          <span>{objects.length ? `${objects.length} ${t.objects} · ${t.plate} ${selectedPlate + 1}/${plateCount}` : t.newProject}</span>
+          <span>{objects.length ? `${projectName} · ${objects.length} ${t.objects} · ${t.plate} ${selectedPlate + 1}/${plateCount}` : t.newProject}</span>
         </div>
         <div className="studio-status" data-status={status}><i/><span>{profileLoading ? t.profileLoading : statusLabel}</span></div>
         <div className="studio-actions">
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
           <button onClick={() => void openProjects()} title={t.projects}><Icon name="save"/><span>{t.projects}</span></button>
-          {!nativeEnvironment.native && <a className="app-download-action" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
+          {!nativeEnvironment.native && <a className="app-download-action" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
           {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
-          {!nativeEnvironment.native && (user ? <a href="/signout-with-chatgpt?return_to=%2F" title={user.email}><Icon name="check"/><span>{t.signOut}</span></a> : <a href="/signin-with-chatgpt?return_to=%2F"><Icon name="info"/><span>{t.signIn}</span></a>)}
+          {!nativeEnvironment.native && (user ? <a href="/signout-with-chatgpt?return_to=%2F" target="_top" title={user.email}><Icon name="check"/><span>{t.signOut}</span></a> : <a href="/signin-with-chatgpt?return_to=%2F" target="_top"><Icon name="info"/><span>{t.signIn}</span></a>)}
           <button className="profile-button" onClick={() => setSheet("setup")} title={t.settings}><b>{profile.shortName}</b><small>{QUALITY[quality].layer.toFixed(2)}</small></button>
           <button className={`panel-button ${sidebarOpen ? "active" : ""}`} onClick={() => setSidebarOpen((value) => !value)} aria-label={t.panel}><Icon name="layers"/></button>
           <button onClick={() => setSheet("about")} aria-label={t.about}><Icon name="info"/></button>
@@ -1611,7 +1786,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
           {sheet === "setup" ? <div className="sheet-body setup-body">
             <fieldset><legend>{t.printer}</legend><div className="profile-grid">
               {(Object.keys(PROFILES) as ProfileId[]).map((id) => <button key={id} className={profileId === id ? "active" : ""} onClick={() => setProfileId(id)}><strong>{PROFILES[id].model}</strong><span>{PROFILES[id].bed}</span><small>{PROFILES[id].settingId} · 0.4 mm</small></button>)}
-            </div></fieldset>
+            </div><p className="profile-status"><Icon name="check"/><span>{t.profilesReady}</span></p></fieldset>
             <fieldset><legend>{t.quality}</legend><div className="segmented-control">
               {(Object.keys(QUALITY) as QualityId[]).map((id) => <button key={id} className={quality === id ? "active" : ""} onClick={() => setQuality(id)}><strong>{QUALITY[id].label}</strong><span>{QUALITY[id].layer.toFixed(2)} mm</span></button>)}
             </div></fieldset>
@@ -1623,8 +1798,9 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
             <p className="file-limit">{t.fileLimit}</p>
             <button className="sheet-done" onClick={() => setSheet(null)}>{t.apply}</button>
           </div> : sheet === "projects" ? <div className="sheet-body projects-body">
+            <label className="project-name-editor"><span>{t.projectName}</span><input value={projectName} maxLength={80} onChange={(event) => setProjectName(event.target.value)} /><small>{lastAutosavedAt ? `${t.autosaved} · ${new Date(lastAutosavedAt).toLocaleTimeString(locale === "ar" ? "ar-IQ" : "en")}` : t.autosaved}</small></label>
             {savedProjects.length ? savedProjects.map((project) => <article className="project-row" key={project.id}>
-              <div><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString(locale === "ar" ? "ar-IQ" : "en")}</small><span>{project.files.length} {t.objects} · {t.autosaved}</span></div>
+              <div><strong>{project.name}</strong><small>{new Date(project.updatedAt).toLocaleString(locale === "ar" ? "ar-IQ" : "en")}</small><span>{project.objectCount ?? project.files.length} {t.objects} · {project.plateCount ?? 1} {t.plate} · {t.autosaved}</span></div>
               <button onClick={() => void resumeStoredProject(project.id)}>{t.resumeProject}</button>
               <button className="danger" onClick={() => void removeStoredProject(project.id)}>{t.deleteProject}</button>
             </article>) : <p className="projects-empty">{t.noProjects}</p>}
@@ -1680,7 +1856,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
                 <span><b>{canLanConnect ? t.appBridgeReady : t.appBridgePreparing}</b><small>{!nativeEnvironment.native ? t.lanUnavailableWeb : !canLanConnect ? t.lanBridgeIncomplete : t.lanRequirements}</small></span>
               </div>
 
-              {!nativeEnvironment.native && <a className="apk-download-card" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk">
+              {!nativeEnvironment.native && <a className="apk-download-card" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk">
                 <Icon name="save"/><span><b>{t.downloadAndroid}</b><small>{t.downloadAndroidHelp}</small></span>
               </a>}
 
@@ -1701,7 +1877,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
                   <button className="connect-lan-button" type="submit" disabled={lanAction !== "idle"}><Icon name="print"/><span>{lanAction === "connecting" ? t.connectingLan : t.connectLan}</span></button>
                 </form> : <div className="connected-printer-card">
                   <span><Icon name="check"/></span>
-                  <div><b>{t.connectedPrinter}</b><strong>{printerStatus.printer?.name ?? printerStatus.printer?.ip ?? lanIp}</strong><small>{printerStatus.state ?? "idle"}</small></div>
+                  <div><b>{t.connectedPrinter}</b><strong>{printerStatus.printer?.name ?? printerStatus.printer?.ip ?? lanIp}</strong><small>{printerStatus.state ?? "idle"}{typeof printerStatus.progress === "number" ? ` · ${Math.round(printerStatus.progress * 100)}%` : ""}{typeof printerStatus.nozzleTemperature === "number" ? ` · N ${Math.round(printerStatus.nozzleTemperature)}°` : ""}{typeof printerStatus.bedTemperature === "number" ? ` · B ${Math.round(printerStatus.bedTemperature)}°` : ""}</small></div>
                   <button onClick={() => void disconnectLan()} disabled={lanAction !== "idle"}>{t.disconnectLan}</button>
                 </div>}
 
@@ -1749,7 +1925,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
-            {!nativeEnvironment.native && <a className="about-app-download" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.1.0.apk" download="LEVO-Studio-Android-v1.1.0.apk">{t.downloadAndroid}</a>}
+            {!nativeEnvironment.native && <a className="about-app-download" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk">{t.downloadAndroid}</a>}
             <p className="levonis-rights">{t.levonisRights}</p>
             <details className="legal-details">
               <summary>{t.legalInfo}</summary>
