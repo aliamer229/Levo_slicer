@@ -27,8 +27,8 @@ import org.json.JSONObject;
 
 @CapacitorPlugin(name = "LevoUpdater")
 public class LevoUpdaterPlugin extends Plugin {
-    private static final String ORIGIN = "https://levo-web-slicer.aliamer59409.chatgpt.site";
-    private static final String MANIFEST_URL = ORIGIN + "/downloads/levo-studio-android.json";
+    private static final String MANIFEST_URL = "https://github.com/aliamer229/Levo_slicer/releases/latest/download/levo-studio-android.json";
+    private static final String GITHUB_RELEASE_PATH = "/aliamer229/Levo_slicer/releases/";
     private static final String PACKAGE_NAME = "iq.levo.studio";
     private static final String EXPECTED_SIGNER_SHA256 = "7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1";
     private static final long MAX_APK_BYTES = 300L * 1024L * 1024L;
@@ -90,7 +90,7 @@ public class LevoUpdaterPlugin extends Plugin {
     }
 
     private Update readUpdate() throws Exception {
-        HttpURLConnection connection = open(MANIFEST_URL);
+        HttpURLConnection connection = openFollowingRedirects(MANIFEST_URL);
         try {
             int status = connection.getResponseCode();
             if (status != HttpURLConnection.HTTP_OK) throw new IllegalStateException("Update manifest returned HTTP " + status + ".");
@@ -104,33 +104,55 @@ public class LevoUpdaterPlugin extends Plugin {
             if (!EXPECTED_SIGNER_SHA256.equalsIgnoreCase(signer)) throw new SecurityException("Untrusted update signer.");
             long sizeBytes = manifest.getLong("sizeBytes");
             if (sizeBytes <= 0 || sizeBytes > MAX_APK_BYTES) throw new SecurityException("Invalid update size.");
+            String downloadUrl = manifest.getString("downloadUrl");
+            URL parsedDownload = new URL(downloadUrl);
+            validateTrustedUrl(parsedDownload);
+            if (!parsedDownload.getPath().endsWith("/" + file)) throw new SecurityException("Update URL does not match its filename.");
             return new Update(
                 manifest.getInt("versionCode"),
                 manifest.getString("versionName"),
                 sizeBytes,
                 sha256,
-                ORIGIN + "/downloads/" + file
+                downloadUrl
             );
         } finally {
             connection.disconnect();
         }
     }
 
-    private static HttpURLConnection open(String value) throws Exception {
-        URL url = new URL(value);
-        if (!"https".equals(url.getProtocol()) || !"levo-web-slicer.aliamer59409.chatgpt.site".equals(url.getHost())) {
+    private static HttpURLConnection openFollowingRedirects(String value) throws Exception {
+        URL current = new URL(value);
+        for (int redirect = 0; redirect <= 5; redirect += 1) {
+            validateTrustedUrl(current);
+            HttpURLConnection connection = (HttpURLConnection) current.openConnection();
+            connection.setConnectTimeout(12_000);
+            connection.setReadTimeout(30_000);
+            connection.setInstanceFollowRedirects(false);
+            connection.setUseCaches(false);
+            connection.setRequestProperty("User-Agent", "LEVO-Studio-Android/1.2.1");
+            connection.setRequestProperty("Accept", "application/json, application/vnd.android.package-archive, application/octet-stream");
+            int status = connection.getResponseCode();
+            if (status != 301 && status != 302 && status != 303 && status != 307 && status != 308) return connection;
+            String location = connection.getHeaderField("Location");
+            connection.disconnect();
+            if (location == null || location.trim().isEmpty()) throw new SecurityException("Update redirect has no destination.");
+            current = new URL(current, location);
+        }
+        throw new SecurityException("Too many update redirects.");
+    }
+
+    private static void validateTrustedUrl(URL url) {
+        String host = url.getHost().toLowerCase(java.util.Locale.US);
+        boolean githubRelease = "github.com".equals(host) && url.getPath().startsWith(GITHUB_RELEASE_PATH);
+        boolean githubAsset = "release-assets.githubusercontent.com".equals(host) || "objects.githubusercontent.com".equals(host);
+        if (!"https".equals(url.getProtocol()) || url.getUserInfo() != null || url.getPort() != -1
+            || url.getRef() != null || (!githubRelease && !githubAsset)) {
             throw new SecurityException("Untrusted update origin.");
         }
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        connection.setConnectTimeout(12000);
-        connection.setReadTimeout(30000);
-        connection.setInstanceFollowRedirects(false);
-        connection.setUseCaches(false);
-        return connection;
     }
 
     private static void download(String url, File target, long expectedBytes) throws Exception {
-        HttpURLConnection connection = open(url);
+        HttpURLConnection connection = openFollowingRedirects(url);
         try {
             if (connection.getResponseCode() != HttpURLConnection.HTTP_OK) throw new IllegalStateException("Update download failed.");
             long announced = connection.getContentLengthLong();

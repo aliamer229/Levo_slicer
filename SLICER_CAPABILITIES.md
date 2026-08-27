@@ -17,9 +17,8 @@ Statuses describe the checked-in browser implementation and automated verificati
 | Multi-plate editing | Implemented | Add, select, and remove plates; slice current or all plates; project supports up to the engine's nine-plate limit. |
 | 3MF project save | Implemented | Serializes geometry, transforms, plate layout, settings, and supported paint data for later reopening. |
 | STL export | Implemented | Native selected/project geometry export. |
-| X2D 0.4 profile | Profile-integrated | Orca GM045 preset; LEVO locks the primary volume to 256 × 256 × 260 mm. Physical X2D verification remains outstanding. |
-| H2D 0.4 profile | Profile-integrated | Orca GM033 preset; bundled 350 × 320 × 325 mm envelope. Actual hardware mode/nozzle constraints still require device validation. |
-| Quality, strength, support | Implemented | Real 0.12/0.20/0.24 mm X2D/H2D process presets with explicit strength/support overrides. |
+| Bambu 0.4 mm profiles | Profile-integrated | Bundled Orca machine/material/process presets are selectable for X2D, H2D, H2C, H2S, H2D Pro, P2S, P1S, P1P, X1C, X1, X1E, A1, A1 mini, and A2L. Machine identity and printable volume remain locked. Physical verification is outstanding. |
+| Quality, strength, support | Implemented | Real bundled 0.12/0.20/0.24 mm process presets with explicit strength/support overrides. |
 | Advanced process/motion/filament settings | Implemented | Schema-driven native settings panels use the same active settings object as slicing. Machine identity and limits stay locked. |
 | Support painting | Implemented | Native enforcer/blocker brushes, erase/clear tools, and radius control. |
 | Full Bambu color/MMU painting | Partial | Basic filament/material mechanisms exist, but the complete Bambu facet codec and workflow are not wired; the unsupported top-level tool remains disabled. |
@@ -36,11 +35,11 @@ Statuses describe the checked-in browser implementation and automated verificati
 | General Auto Arrange / Auto Orient | Missing | Visible as disabled native controls; requires the corresponding libslic3r ports. |
 | Cut / Boolean / modifier parts | Missing | Visible as disabled native controls; the web engine lacks the geometry/part implementation. |
 | Seam paint / Text / Measure / variable layers | Missing | Visible as disabled native controls and described in the platform-status sheet. |
-| Background persistence | Missing | Save `.3mf` explicitly; a reload clears unsaved state. |
-| Printer discovery and status | Native adapter pending | Website reports unavailable. Native bridge reports capability `false` until authenticated discovery/status is implemented and verified on X2D hardware; no state is fabricated. |
+| Background persistence | Implemented | Debounced project snapshots, active profile/settings, plate/object counts, rename/delete, project list, and reopen/resume are stored locally in IndexedDB. Saves resolve only after their transaction commits. |
+| Printer discovery and status | Android implemented, hardware-unverified | Android scans private local subnets for MQTT/TLS, requires the serial and LAN access code, pins MQTT/FTPS certificates, and surfaces live reports. Browser and iOS report unavailable; no state is fabricated. |
 | AMS mapping and status | Disabled | No fabricated trays, colors, or material availability. |
 | Bambu `.gcode.3mf` packaging | Native adapter pending | The bridge accepts the project and G-code as independently checksummed assets, but packaging capability stays `false` until a golden X2D-accepted package and negative fixtures pass. |
-| Direct Bambu LAN app print | Native adapter pending | The UI requires live connection, package, transfer, and start capabilities simultaneously. Both native plugins currently return `false`, so no premature print control can run. |
+| Direct Bambu LAN app print | Android experimental raw-G-code route | Android exposes raw G-code separately from package printing, requires live idle status, verified FTPS, SHA-256/size validation, a final target/profile/plate/checksum confirmation, and a matching MQTT result (or observed live state transition). It is not certified until real X2D/H2D firmware tests pass. |
 | Direct Bambu cloud/browser print | Officially gated | Bambu's authorization system requires approved integration documentation and credentials for cloud initiation. LEVO exposes the real blocked state and never fabricates a connection or asks for a Bambu account password. |
 
 “Implemented” means the action exists in source and is covered by type, lint, build, rendered-shell, and engine-control contract checks where applicable. “Profile-integrated” means the bundled Orca profile is used and locked; it is not a claim of hardware certification.

@@ -21,6 +21,7 @@ iOS requires Xcode and an Apple signing team. Android requires Android Studio an
 - Use iOS Keychain and Android Keystore-backed encrypted storage only after explicit user consent.
 - Accept private IPv4 or `.local` printer addresses only.
 - Pin each connection to the confirmed printer serial and model.
-- Build and validate a deterministic `.gcode.3mf` before upload.
-- Require an idle, compatible printer and an explicit final confirmation.
+- Advertise raw G-code and `.gcode.3mf` as separate capabilities; never label one as the other.
+- Keep `.gcode.3mf` disabled until a deterministic package passes the golden-fixture and hardware gates.
+- Require an idle printer and an explicit final confirmation tied to the target, profile, plate, filename, and G-code checksum.
 - Report success only after the printer acknowledges the same job identifier/checksum.

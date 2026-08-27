@@ -4,6 +4,7 @@ export interface LevoPrinterCapabilities {
   discovery: boolean;
   lanConnection: boolean;
   telemetry: boolean;
+  rawGcodePrintJob: boolean;
   packagePrintJob: boolean;
   fileTransfer: boolean;
   startPrint: boolean;
@@ -34,6 +35,8 @@ export interface LevoPrinterStatus {
   error?: string;
   requiresTrust?: boolean;
   certificateFingerprint?: string;
+  fileTransferFingerprint?: string;
+  fileTransferVerified?: boolean;
   transportVerified?: boolean;
 }
 
@@ -43,6 +46,7 @@ export interface LevoPrinterConnection {
   serial?: string;
   remember: boolean;
   trustedFingerprint?: string;
+  trustedFileFingerprint?: string;
 }
 
 export interface LevoPrintJobMetadata {
@@ -104,6 +108,7 @@ const NO_CAPABILITIES: LevoPrinterCapabilities = {
   discovery: false,
   lanConnection: false,
   telemetry: false,
+  rawGcodePrintJob: false,
   packagePrintJob: false,
   fileTransfer: false,
   startPrint: false,
@@ -174,9 +179,21 @@ export async function connectNativePrinter(options: LevoPrinterConnection) {
   const first = await requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false });
   if (!first.requiresTrust || !first.certificateFingerprint) return first;
   const grouped = first.certificateFingerprint.match(/.{1,2}/g)?.join(":") ?? first.certificateFingerprint;
-  const approved = window.confirm(`Verify this printer certificate fingerprint:\n\n${grouped}\n\nOnly continue if the IP and serial match the printer in front of you.`);
+  const fileGrouped = first.fileTransferFingerprint?.match(/.{1,2}/g)?.join(":") ?? first.fileTransferFingerprint;
+  const fingerprints = fileGrouped
+    ? `MQTT 8883:\n${grouped}\n\nFTPS 990:\n${fileGrouped}`
+    : `MQTT 8883:\n${grouped}\n\nFTPS 990: unavailable (status-only connection)`;
+  const approved = window.confirm(`Verify this printer's encrypted LAN certificates:\n\n${fingerprints}\n\nOnly continue if the IP and serial match the printer in front of you.`);
   if (!approved) throw new Error("Printer certificate approval was cancelled.");
-  return requirePlugin().connect({ ...options, ip: options.ip.trim(), accessCode, serial, remember: false, trustedFingerprint: first.certificateFingerprint });
+  return requirePlugin().connect({
+    ...options,
+    ip: options.ip.trim(),
+    accessCode,
+    serial,
+    remember: false,
+    trustedFingerprint: first.certificateFingerprint,
+    trustedFileFingerprint: first.fileTransferFingerprint,
+  });
 }
 
 export async function disconnectNativePrinter() {
@@ -199,7 +216,7 @@ export async function installNativeUpdate() {
   return updater.installUpdate();
 }
 
-async function sha256(file: Blob) {
+export async function sha256Hex(file: Blob) {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -233,25 +250,26 @@ async function sendAsset(
 }
 
 export async function sendNativePrintJob(options: {
-  project: File;
+  project?: File;
   gcode: File;
   metadata: Omit<LevoPrintJobMetadata, "projectBytes" | "gcodeBytes">;
   onProgress?: (ratio: number) => void;
 }) {
   const plugin = requirePlugin();
-  const totalBytes = options.project.size + options.gcode.size;
+  const project = options.project ?? new File([], "levo-local-print.3mf", { type: "model/3mf" });
+  const totalBytes = project.size + options.gcode.size;
   const idempotencyKey = crypto.randomUUID();
   const transfer = await plugin.beginPrintJob({
     ...options.metadata,
     idempotencyKey,
-    projectBytes: options.project.size,
+    projectBytes: project.size,
     gcodeBytes: options.gcode.size,
   });
 
   try {
-    const [projectSha256, gcodeSha256] = await Promise.all([sha256(options.project), sha256(options.gcode)]);
-    await sendAsset(plugin, transfer.transferId, "project", options.project, 0, totalBytes, options.onProgress);
-    await sendAsset(plugin, transfer.transferId, "gcode", options.gcode, options.project.size, totalBytes, options.onProgress);
+    const [projectSha256, gcodeSha256] = await Promise.all([sha256Hex(project), sha256Hex(options.gcode)]);
+    if (project.size) await sendAsset(plugin, transfer.transferId, "project", project, 0, totalBytes, options.onProgress);
+    await sendAsset(plugin, transfer.transferId, "gcode", options.gcode, project.size, totalBytes, options.onProgress);
     const result = await plugin.commitPrintJob({ transferId: transfer.transferId, projectSha256, gcodeSha256 });
     options.onProgress?.(1);
     return result;

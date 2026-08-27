@@ -1,3 +1,5 @@
+import type { SlicerSettings } from "three-slicer";
+
 export interface StoredLevoProject {
   id: string;
   name: string;
@@ -7,6 +9,10 @@ export interface StoredLevoProject {
   quality: string;
   strength: string;
   support: boolean;
+  settings?: SlicerSettings;
+  objectCount?: number;
+  plateCount?: number;
+  snapshotVersion?: 2;
 }
 
 const DB_NAME = "levo-studio-projects";
@@ -30,8 +36,12 @@ async function transact<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore
     return await new Promise<T>((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
       const request = run(tx.objectStore(STORE));
-      request.onsuccess = () => resolve(request.result);
+      let result!: T;
+      request.onsuccess = () => { result = request.result; };
       request.onerror = () => reject(request.error);
+      tx.oncomplete = () => resolve(result);
+      tx.onerror = () => reject(tx.error ?? request.error);
+      tx.onabort = () => reject(tx.error ?? new Error("The project save was aborted."));
     });
   } finally { db.close(); }
 }

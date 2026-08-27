@@ -54,7 +54,7 @@ See Bambu Lab's official [Bambu Connect guide](https://wiki.bambulab.com/en/soft
 
 The current web engine does not implement Bambu Studio's Auto Arrange, Auto Orient, Cut, Boolean, modifier/negative parts, seam painting, complete color/MMU painting, text/SVG emboss, Measure, or variable layer-height tools. Their native toolbar entries stay disabled and LEVO reports the limitation instead of simulating success.
 
-LEVO supports real G-code export and explicit Bambu handoffs, but direct browser-to-printer/cloud networking remains disabled. Handy-style cloud printing requires Bambu Lab partner authorization; the separate LAN path uses the printer's opt-in Developer Mode and a native mobile runtime. The mobile shells and chunked, checksum-verified JavaScript/native bridge are checked in under `mobile/`, while printer discovery, MQTT/FTPS authentication, `.gcode.3mf` packaging, upload, and start capabilities deliberately report `false` until real X2D hardware tests pass. LEVO never converts an unverified transport attempt into a connected/printing success state. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
+LEVO supports real G-code export and explicit Bambu handoffs, but direct browser-to-printer/cloud networking remains disabled. Handy-style cloud printing requires Bambu Lab partner authorization. Android 1.2.1 also contains an opt-in LAN Only/Developer Mode bridge: it pins the printer's MQTT/FTPS certificates, authenticates with the local access code, reports live status, checks staged G-code by size and SHA-256, and requires a final file/printer confirmation before issuing the raw-G-code start command. Bambu `.gcode.3mf` packaging remains disabled and the LAN path is explicitly hardware-unverified until it passes the documented X2D/H2D matrix. LEVO never converts an unverified transport attempt into a connected/printing success state. See [SLICER_CAPABILITIES.md](SLICER_CAPABILITIES.md) and [BAMBU_PRINT_PIPELINE.md](BAMBU_PRINT_PIPELINE.md).
 
 ## Shared mobile application
 
@@ -66,7 +66,7 @@ npm ci
 npm run sync
 ```
 
-Building/signing an iOS binary still requires Xcode and an Apple signing team. Native LAN transport stays gated until it is implemented and validated against the target X2D firmware.
+Building/signing an iOS binary still requires Xcode and an Apple signing team. Android's Developer Mode raw-G-code transport is implemented but remains marked experimental until it is validated against the target X2D/H2D firmware matrix; `.gcode.3mf` packaging stays gated.
 
 The Android build workflow produces an installable `LEVO-Studio-Android-v1.0.0.apk` for direct testing. Google Play production distribution must use a private LEVONIS release key stored outside the public repository.
 

@@ -30,6 +30,8 @@ test("renders the production slicer shell and security policy", async () => {
   assert.match(response.headers.get("content-security-policy") ?? "", /'unsafe-eval'/);
   assert.equal(response.headers.get("x-content-type-options"), "nosniff");
   assert.equal(response.headers.get("x-frame-options"), "DENY");
+  assert.equal(response.headers.get("cross-origin-opener-policy"), "same-origin");
+  assert.equal(response.headers.get("cross-origin-embedder-policy"), "require-corp");
 
   const html = await response.text();
   assert.doesNotMatch(html, /codex-preview/i);

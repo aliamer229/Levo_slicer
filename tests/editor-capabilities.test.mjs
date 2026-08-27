@@ -155,6 +155,7 @@ test("verified profiles and explicit capability boundaries stay present", async 
   for (const preset of [
     "Bambu Lab X2D 0.4 nozzle",
     "Bambu Lab H2D 0.4 nozzle",
+    "Bambu Lab A2L 0.4 nozzle",
     "0.12mm High Quality @BBL X2D",
     "0.20mm Standard @BBL H2D",
   ]) {
@@ -165,7 +166,7 @@ test("verified profiles and explicit capability boundaries stay present", async 
     assert.ok(engine.includes(`id: "${id}"`), `boundary tool ${id} is missing`);
   }
   assert.match(engine, /Auto arrange[^\n]+Not implemented/);
-  assert.match(app, /Direct cloud printing stays disabled until Bambu Lab provides approved-partner authorization/);
+  assert.match(app, /Direct cloud printing still requires official Bambu Lab partner authorization/);
 });
 
 test("web, iOS, and Android share one capability-gated printer connection surface", async () => {
@@ -182,10 +183,11 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   const mobilePackage = JSON.parse(mobilePackageText);
 
   assert.match(app, /\["lan", "cloud", "usb"\]/);
-  assert.match(app, /\/downloads\/LEVO-Studio-Android-v1\.1\.0\.apk/);
+  assert.match(app, /releases\/latest\/download\/LEVO-Studio-Android-v1\.2\.1\.apk/);
   assert.match(app, /© 2026 LEVONIS/);
   assert.match(app, /nativeEnvironment\.capabilities\.lanConnection/);
   assert.match(app, /required\.packagePrintJob/);
+  assert.match(app, /required\.rawGcodePrintJob/);
   assert.match(app, /required\.fileTransfer/);
   assert.match(app, /required\.startPrint/);
   assert.match(app, /printerStatus\.connected/);
@@ -209,7 +211,13 @@ test("web, iOS, and Android share one capability-gated printer connection surfac
   assert.match(androidPlugin, /"lanConnection"[^\n]+true/);
   assert.match(androidPlugin, /requiresTrust/);
   assert.match(androidPlugin, /certificateFingerprint/);
-  for (const nativeSource of [iosPlugin, androidPlugin]) assert.match(nativeSource, /"startPrint"[^\n]+false/);
+  assert.match(iosPlugin, /"startPrint"[^\n]+false/);
+  assert.match(androidPlugin, /"startPrint"[^\n]+true/);
+  assert.match(androidPlugin, /"rawGcodePrintJob"[^\n]+true/);
+  assert.match(androidPlugin, /"packagePrintJob"[^\n]+false/);
+  assert.match(androidPlugin, /LevoMqttClient/);
+  assert.match(androidPlugin, /LevoFtpsClient/);
+  assert.match(androidPlugin, /"command", "gcode_file"/);
 });
 
 test("local printer addresses are restricted to private LAN ranges", async () => {
@@ -242,7 +250,8 @@ test("Android updates are in-place, origin-locked, and checksum-verified", async
   assert.match(bridge, /LevoUpdater/);
   assert.match(activity, /registerPlugin\(LevoUpdaterPlugin\.class\)/);
   assert.match(manifest, /REQUEST_INSTALL_PACKAGES/);
-  assert.match(updater, /https:\/\/levo-web-slicer\.aliamer59409\.chatgpt\.site/);
+  assert.match(updater, /https:\/\/github\.com\/aliamer229\/Levo_slicer\/releases\/latest\/download\/levo-studio-android\.json/);
+  assert.match(updater, /release-assets\.githubusercontent\.com/);
   assert.match(updater, /Untrusted update origin/);
   assert.match(updater, /SHA-256/);
   assert.match(updater, /7a1e2f090ca588687070bf90334812e38c7431ba9f6118473f2b1925e81321e1/);
