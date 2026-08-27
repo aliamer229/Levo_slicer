@@ -80,7 +80,7 @@ jobs:
 
   release:
     name: Sign and publish production APK
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -96,7 +96,28 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Resolve release version
+        id: release_meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName "\([^"]*\)"/\1/p' mobile/android/app/build.gradle | head -n 1)"
+          RELEASE_TAG="v$VERSION_NAME"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "$RELEASE_TAG" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Android version $RELEASE_TAG"
+            exit 1
+          fi
+          EXISTS=false
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then EXISTS=true; fi
+          echo "version=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "exists=$EXISTS" >> "$GITHUB_OUTPUT"
+          echo "LEVO_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "LEVO_RELEASE_TAG=$RELEASE_TAG" >> "$GITHUB_ENV"
+
       - name: Validate signing secrets
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           for variable in LEVO_KEYSTORE_BASE64 LEVO_KEYSTORE_PASSWORD LEVO_KEY_ALIAS LEVO_KEY_PASSWORD; do
@@ -107,6 +128,7 @@ jobs:
           done
 
       - name: Set up Node.js
+        if: steps.release_meta.outputs.exists != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -116,6 +138,7 @@ jobs:
             mobile/package-lock.json
 
       - name: Set up Java
+        if: steps.release_meta.outputs.exists != 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -123,34 +146,29 @@ jobs:
           cache: gradle
 
       - name: Install dependencies
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           npm ci
           npm ci --prefix mobile
 
       - name: Build bundled mobile application
+        if: steps.release_meta.outputs.exists != 'true'
         run: npm run build --prefix mobile
 
       - name: Synchronize Android project
+        if: steps.release_meta.outputs.exists != 'true'
         run: cd mobile && npx cap sync android
 
       - name: Restore LEVONIS signing key
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           printf '%s' "$LEVO_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/levo-studio-release.p12"
           chmod 600 "$RUNNER_TEMP/levo-studio-release.p12"
           echo "LEVO_KEYSTORE_PATH=$RUNNER_TEMP/levo-studio-release.p12" >> "$GITHUB_ENV"
 
-      - name: Verify release version matches tag
-        run: |
-          set -euo pipefail
-          VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName "\([^"]*\)"/\1/p' mobile/android/app/build.gradle | head -n 1)"
-          if [ "v$VERSION_NAME" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match Android version v$VERSION_NAME"
-            exit 1
-          fi
-          echo "LEVO_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
-
       - name: Build signed production APK
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           chmod +x mobile/android/gradlew
@@ -158,12 +176,14 @@ jobs:
           ./gradlew :app:assembleRelease --stacktrace
 
       - name: Prepare distributable files
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           cp mobile/android/app/build/outputs/apk/release/app-release.apk "LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk"
           sha256sum "LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk" > "LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk.sha256"
 
       - name: Verify APK integrity and permanent signer
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           APK="LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk"
@@ -177,13 +197,14 @@ jobs:
           unzip -t "$APK"
 
       - name: Create update manifest
+        if: steps.release_meta.outputs.exists != 'true'
         run: |
           set -euo pipefail
           APK="LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk"
           SIZE_BYTES="$(stat -c %s "$APK")"
           SHA256="$(sha256sum "$APK" | cut -d' ' -f1)"
           VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode \([0-9][0-9]*\)/\1/p' mobile/android/app/build.gradle | head -n 1)"
-          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/$APK"
+          RELEASE_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$LEVO_RELEASE_TAG/$APK"
           jq -n \
             --arg name "LEVO Studio" \
             --arg owner "LEVONIS" \
@@ -198,25 +219,32 @@ jobs:
             > levo-studio-android.json
 
       - name: Upload verified APK artifact
+        if: steps.release_meta.outputs.exists != 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: LEVO-Studio-Android-${{ github.ref_name }}
+          name: LEVO-Studio-Android-v${{ steps.release_meta.outputs.version }}
           path: |
-            LEVO-Studio-Android-${{ github.ref_name }}.apk
-            LEVO-Studio-Android-${{ github.ref_name }}.apk.sha256
+            LEVO-Studio-Android-v${{ steps.release_meta.outputs.version }}.apk
+            LEVO-Studio-Android-v${{ steps.release_meta.outputs.version }}.apk.sha256
             levo-studio-android.json
           if-no-files-found: error
           retention-days: 90
 
       - name: Publish GitHub release
+        if: steps.release_meta.outputs.exists != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release create "$GITHUB_REF_NAME" \
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG_ARGS=(--verify-tag)
+          else
+            TAG_ARGS=(--target "$GITHUB_SHA")
+          fi
+          gh release create "$LEVO_RELEASE_TAG" \
             "LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk" \
             "LEVO-Studio-Android-v$LEVO_VERSION_NAME.apk.sha256" \
             levo-studio-android.json \
-            --verify-tag \
+            "${TAG_ARGS[@]}" \
             --title "LEVO Studio v$LEVO_VERSION_NAME" \
             --notes "Official LEVONIS Android release. SHA-256 and permanent signer identity are verified by the release workflow."

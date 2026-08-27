@@ -34,15 +34,20 @@ final class LevoFtpsClient implements Closeable {
         this.certificateFingerprint = certificateFingerprint;
     }
 
+    void verify() throws Exception {
+        connect();
+        try {
+            authenticate();
+            command("QUIT");
+        } finally {
+            close();
+        }
+    }
+
     void upload(File localFile, String remoteName) throws Exception {
         connect();
         try {
-            Response user = command("USER bblp");
-            if (user.code == 331) expect(command("PASS " + accessCode), 230, "FTPS login failed");
-            else expect(user, 230, "FTPS login failed");
-            expect(command("PBSZ 0"), 200, "FTPS PBSZ negotiation failed");
-            expect(command("PROT P"), 200, "FTPS data encryption was rejected");
-            expect(command("TYPE I"), 200, "FTPS binary mode was rejected");
+            authenticate();
 
             int dataPort = passiveDataPort();
 
@@ -69,6 +74,15 @@ final class LevoFtpsClient implements Closeable {
         } finally {
             close();
         }
+    }
+
+    private void authenticate() throws Exception {
+        Response user = command("USER bblp");
+        if (user.code == 331) expect(command("PASS " + accessCode), 230, "FTPS login failed");
+        else expect(user, 230, "FTPS login failed");
+        expect(command("PBSZ 0"), 200, "FTPS PBSZ negotiation failed");
+        expect(command("PROT P"), 200, "FTPS data encryption was rejected");
+        expect(command("TYPE I"), 200, "FTPS binary mode was rejected");
     }
 
     private int passiveDataPort() throws Exception {

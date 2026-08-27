@@ -39,6 +39,9 @@ import org.json.JSONObject;
 @CapacitorPlugin(name = "LevoPrinter")
 public class LevoPrinterPlugin extends Plugin {
     private static final String MQTT_PORT_HELP = "Enable LAN Only or Developer Mode on the printer, then verify its IP, serial and LAN access code.";
+    private static final long MAX_PROJECT_BYTES = 512L * 1024L * 1024L;
+    private static final long MAX_GCODE_BYTES = 512L * 1024L * 1024L;
+    private static final int MAX_CHUNK_BYTES = 192 * 1024;
     private final ExecutorService queue = Executors.newSingleThreadExecutor();
     private final Map<String, Transfer> transfers = new ConcurrentHashMap<>();
     private final Object reportLock = new Object();
@@ -59,6 +62,8 @@ public class LevoPrinterPlugin extends Plugin {
         final String name;
         int nextProjectChunk;
         int nextGcodeChunk;
+        long projectWritten;
+        long gcodeWritten;
 
         Transfer(File directory, long projectBytes, long gcodeBytes, String name) {
             this.directory = directory;
@@ -74,13 +79,14 @@ public class LevoPrinterPlugin extends Plugin {
         capabilities.put("discovery", true);
         capabilities.put("lanConnection", true);
         capabilities.put("telemetry", true);
-        capabilities.put("packagePrintJob", true);
+        capabilities.put("rawGcodePrintJob", true);
+        capabilities.put("packagePrintJob", false);
         capabilities.put("fileTransfer", true);
         capabilities.put("startPrint", true);
         JSObject result = new JSObject();
         result.put("native", true);
         result.put("platform", "android");
-        result.put("bridgeVersion", "1.0.0");
+        result.put("bridgeVersion", "1.1.0");
         result.put("capabilities", capabilities);
         call.resolve(result);
     }
@@ -174,13 +180,25 @@ public class LevoPrinterPlugin extends Plugin {
                     }
                 });
                 candidate.connect();
+                boolean ftpsReady = false;
+                String ftpsError = null;
+                if (inspectedFtps != null) {
+                    try {
+                        new LevoFtpsClient(ip, accessCode, inspectedFtps).verify();
+                        ftpsReady = true;
+                    } catch (Exception error) {
+                        ftpsError = error.getMessage() == null ? "Encrypted file-transfer authentication failed." : error.getMessage();
+                    }
+                }
                 mqtt = candidate;
                 mqttFingerprint = inspectedMqtt;
                 ftpsFingerprint = inspectedFtps;
                 connectedIp = ip;
                 connectedAccessCode = accessCode;
-                fileTransferVerified = inspectedFtps != null;
-                lastConnectionError = inspectedFtps == null ? "MQTT is connected, but encrypted file transfer on port 990 is unavailable." : null;
+                fileTransferVerified = ftpsReady;
+                lastConnectionError = inspectedFtps == null
+                    ? "MQTT is connected, but encrypted file transfer on port 990 is unavailable."
+                    : ftpsError;
 
                 JSObject printer = new JSObject();
                 printer.put("id", serial);
@@ -219,7 +237,8 @@ public class LevoPrinterPlugin extends Plugin {
         Long projectBytes = call.getLong("projectBytes");
         Long gcodeBytes = call.getLong("gcodeBytes");
         String name = trim(call.getString("name"));
-        if (projectBytes == null || gcodeBytes == null || projectBytes < 0 || gcodeBytes <= 0) {
+        if (projectBytes == null || gcodeBytes == null || projectBytes < 0 || gcodeBytes <= 0
+            || projectBytes > MAX_PROJECT_BYTES || gcodeBytes > MAX_GCODE_BYTES) {
             call.reject("Invalid print-job sizes.");
             return;
         }
@@ -258,6 +277,10 @@ public class LevoPrinterPlugin extends Plugin {
             call.reject("Invalid print-job chunk.");
             return;
         }
+        if (encoded.length() > ((MAX_CHUNK_BYTES + 2) / 3) * 4) {
+            call.reject("The print-job chunk exceeds the bridge limit.");
+            return;
+        }
         queue.execute(() -> {
             Transfer transfer = transfers.get(transferId);
             if (transfer == null) {
@@ -271,9 +294,25 @@ public class LevoPrinterPlugin extends Plugin {
             }
             try {
                 byte[] bytes = Base64.decode(encoded, Base64.NO_WRAP);
+                if (bytes.length <= 0 || bytes.length > MAX_CHUNK_BYTES) {
+                    call.reject("The print-job chunk exceeds the bridge limit.");
+                    return;
+                }
+                long written = "project".equals(asset) ? transfer.projectWritten : transfer.gcodeWritten;
+                long expectedBytes = "project".equals(asset) ? transfer.projectBytes : transfer.gcodeBytes;
+                if (written + bytes.length > expectedBytes) {
+                    call.reject("The print-job asset is larger than declared.");
+                    return;
+                }
                 File file = new File(transfer.directory, "project".equals(asset) ? "project.3mf.part" : "plate.gcode.part");
                 try (FileOutputStream stream = new FileOutputStream(file, true)) { stream.write(bytes); }
-                if ("project".equals(asset)) transfer.nextProjectChunk += 1; else transfer.nextGcodeChunk += 1;
+                if ("project".equals(asset)) {
+                    transfer.nextProjectChunk += 1;
+                    transfer.projectWritten += bytes.length;
+                } else {
+                    transfer.nextGcodeChunk += 1;
+                    transfer.gcodeWritten += bytes.length;
+                }
                 JSObject result = new JSObject();
                 result.put("accepted", true);
                 call.resolve(result);
@@ -334,7 +373,7 @@ public class LevoPrinterPlugin extends Plugin {
                     if ("idle".equals(currentState())) throw new IllegalStateException("The file was uploaded, but the printer did not confirm the start command. Check its screen before retrying.", timeout);
                     acknowledgement = null;
                 }
-                verifyPrintAcknowledgement(acknowledgement);
+                verifyPrintAcknowledgement(acknowledgement, sequence);
 
                 JSObject result = new JSObject();
                 result.put("jobId", "lan-" + sequence);
@@ -443,13 +482,17 @@ public class LevoPrinterPlugin extends Plugin {
         synchronized (reportLock) { lastReport = new JSONObject(); }
     }
 
-    private static void verifyPrintAcknowledgement(JSONObject acknowledgement) {
+    private static void verifyPrintAcknowledgement(JSONObject acknowledgement, String sequence) {
         if (acknowledgement == null) return;
         JSONObject print = acknowledgement.optJSONObject("print");
-        if (print == null) return;
-        String result = print.optString("result", "success");
+        if (print == null || !sequence.equals(print.optString("sequence_id", ""))) {
+            throw new IllegalStateException("The printer returned an invalid print acknowledgement.");
+        }
+        String result = print.optString("result", "");
+        String reason = print.optString("reason", "");
+        if (result.isEmpty() && !reason.isEmpty()) result = "failed";
         if (!"success".equalsIgnoreCase(result)) {
-            throw new IllegalStateException(print.optString("reason", "The printer rejected the print command."));
+            throw new IllegalStateException(reason.isEmpty() ? "The printer rejected the print command." : reason);
         }
     }
 

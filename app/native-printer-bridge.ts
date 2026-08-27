@@ -4,6 +4,7 @@ export interface LevoPrinterCapabilities {
   discovery: boolean;
   lanConnection: boolean;
   telemetry: boolean;
+  rawGcodePrintJob: boolean;
   packagePrintJob: boolean;
   fileTransfer: boolean;
   startPrint: boolean;
@@ -107,6 +108,7 @@ const NO_CAPABILITIES: LevoPrinterCapabilities = {
   discovery: false,
   lanConnection: false,
   telemetry: false,
+  rawGcodePrintJob: false,
   packagePrintJob: false,
   fileTransfer: false,
   startPrint: false,
@@ -214,7 +216,7 @@ export async function installNativeUpdate() {
   return updater.installUpdate();
 }
 
-async function sha256(file: Blob) {
+export async function sha256Hex(file: Blob) {
   const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -265,7 +267,7 @@ export async function sendNativePrintJob(options: {
   });
 
   try {
-    const [projectSha256, gcodeSha256] = await Promise.all([sha256(project), sha256(options.gcode)]);
+    const [projectSha256, gcodeSha256] = await Promise.all([sha256Hex(project), sha256Hex(options.gcode)]);
     if (project.size) await sendAsset(plugin, transfer.transferId, "project", project, 0, totalBytes, options.onProgress);
     await sendAsset(plugin, transfer.transferId, "gcode", options.gcode, project.size, totalBytes, options.onProgress);
     const result = await plugin.commitPrintJob({ transferId: transfer.transferId, projectSha256, gcodeSha256 });

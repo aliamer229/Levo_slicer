@@ -45,6 +45,7 @@ final class LevoPrinterPlugin: CAPPlugin, CAPBridgedPlugin {
                 "discovery": false,
                 "lanConnection": false,
                 "telemetry": false,
+                "rawGcodePrintJob": false,
                 "packagePrintJob": false,
                 "fileTransfer": false,
                 "startPrint": false

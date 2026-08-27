@@ -17,6 +17,7 @@ import {
   getNativePrinterStatus,
   installNativeUpdate,
   sendNativePrintJob,
+  sha256Hex,
   type LevoDiscoveredPrinter,
   type LevoNativeEnvironment,
   type LevoPrinterStatus,
@@ -206,6 +207,13 @@ const PROFILES = {
     materialPreset: "Bambu PLA Basic @BBL A1M",
     processPresets: { fine: "0.12mm Fine @BBL A1M", standard: "0.20mm Standard @BBL A1M", draft: "0.24mm Draft @BBL A1M" },
   },
+  "bbl-a2l-04": {
+    id: "bbl-a2l-04", shortName: "A2L", model: "Bambu Lab A2L",
+    presetName: "Bambu Lab A2L 0.4 nozzle", settingId: "Orca BBL", nozzle: 0.4,
+    bed: "330 × 320 × 325 mm", bedWidth: 330, bedDepth: 320, bedHeight: 325,
+    materialPreset: "Bambu PLA Basic @BBL A2L 0.4 nozzle",
+    processPresets: { fine: "0.12mm High Quality @BBL A2L", standard: "0.20mm Standard @BBL A2L", draft: "0.24mm Standard @BBL A2L" },
+  },
 } as const satisfies Record<string, PrinterProfile>;
 
 type ProfileId = keyof typeof PROFILES;
@@ -362,7 +370,7 @@ const TEXT = {
     appBridgeReady: "جسر الطابعة المحلي جاهز",
     appBridgePreparing: "اتصال IP متاح داخل تطبيق LEVO فقط. الموقع سيبقى متاحًا للسحابة وUSB.",
     downloadAndroid: "تحميل تطبيق LEVO Studio",
-    downloadAndroidHelp: "APK رسمي لأجهزة Android · الإصدار 1.2.0",
+    downloadAndroidHelp: "APK رسمي لأجهزة Android · الإصدار 1.2.1",
     installAndroid: "تنزيل APK",
     updateAvailable: "تحديث جديد",
     updateNow: "تحديث الآن",
@@ -388,10 +396,11 @@ const TEXT = {
     lanSecurity: "لا تُرسل بيانات الطابعة إلى الموقع أو السحابة. يحتفظ جسر التطبيق بـ Access Code في الذاكرة فقط حتى قطع الاتصال.",
     lanRequirements: "فعّل LAN Only أو Developer Mode من شاشة الطابعة، ثم أدخل IP والرقم التسلسلي وAccess Code.",
     lanUnavailableWeb: "الاتصال المحلي غير مدعوم من Safari. افتح المشروع نفسه داخل تطبيق LEVO لاستخدام IP.",
-    lanBridgeIncomplete: "حدّث التطبيق إلى 1.2.0 لتفعيل جسر MQTT/FTPS المحلي.",
+    lanBridgeIncomplete: "حدّث التطبيق إلى 1.2.1 لتفعيل جسر MQTT/FTPS المحلي.",
     sendLanPrint: "إرسال وبدء الطباعة",
     sendingLanPrint: "جارٍ نقل ملف الطباعة…",
     lanPrintQueued: "استلمت الطابعة المهمة وأكد التطبيق إدراجها للطباعة.",
+    confirmLanPrint: "تأكيد إرسال {file} إلى {printer}\nالملف: {profile} · Plate {plate}\nSHA-256: {checksum}\n\nهذا مسار G-code محلي عبر Developer Mode. راجع نوع Plate والفوهة والفلمنت وAMS على الطابعة قبل المتابعة.",
     cloudTitle: "Bambu Cloud من الهاتف",
     cloudHelp: "صدّر مشروع 3MF، ارفعه Private إلى MakerWorld، ثم أكمل اختيار الطابعة وAMS داخل Bambu Handy.",
     usbTitle: "الطباعة من ذاكرة USB",
@@ -463,7 +472,7 @@ const TEXT = {
     advancedHelp: "تظهر داخل لوحة المحرر الكاملة.",
     close: "إغلاق",
     directPrint: "الطباعة المباشرة",
-    directPrintHelp: "الطباعة المحلية عبر IP متاحة في تطبيق Android 1.2.0. الطباعة السحابية المباشرة تبقى بحاجة إلى اعتماد رسمي من Bambu Lab.",
+    directPrintHelp: "الطباعة المحلية التجريبية عبر IP وDeveloper Mode متاحة في تطبيق Android 1.2.1. الطباعة السحابية المباشرة تبقى بحاجة إلى اعتماد رسمي من Bambu Lab.",
     realEditor: "محرر Plate حقيقي",
     realEditorHelp: "تحريك، دوران، تكبير وتصغير، حذف، تكرار، تقسيم، Undo/Redo، دعم عدة Plates وحفظ 3MF.",
     layers: "طبقات",
@@ -526,7 +535,7 @@ const TEXT = {
     appBridgeReady: "Local printer bridge ready",
     appBridgePreparing: "IP connection is available inside the LEVO app only. The website remains available for cloud and USB workflows.",
     downloadAndroid: "Download LEVO Studio",
-    downloadAndroidHelp: "Official Android APK · version 1.2.0",
+    downloadAndroidHelp: "Official Android APK · version 1.2.1",
     installAndroid: "Download APK",
     updateAvailable: "Update available",
     updateNow: "Update now",
@@ -552,10 +561,11 @@ const TEXT = {
     lanSecurity: "Printer credentials never leave the device or go to the cloud. The bridge keeps the Access Code in memory only until disconnect.",
     lanRequirements: "Enable LAN Only or Developer Mode on the printer, then enter its IP, serial and LAN Access Code.",
     lanUnavailableWeb: "Safari cannot make this local connection. Open the same project in the LEVO app to use IP printing.",
-    lanBridgeIncomplete: "Update to app 1.2.0 to enable the local MQTT/FTPS printer bridge.",
+    lanBridgeIncomplete: "Update to app 1.2.1 to enable the local MQTT/FTPS printer bridge.",
     sendLanPrint: "Send and start print",
     sendingLanPrint: "Transferring the print job…",
     lanPrintQueued: "The printer acknowledged the job and the app confirmed it was queued.",
+    confirmLanPrint: "Confirm sending {file} to {printer}\nPayload: {profile} · Plate {plate}\nSHA-256: {checksum}\n\nThis is a local Developer Mode G-code path. Verify the build plate, nozzle, filament and AMS on the printer before continuing.",
     cloudTitle: "Bambu Cloud from your phone",
     cloudHelp: "Export the 3MF project, upload it privately to MakerWorld, then confirm the printer and AMS in Bambu Handy.",
     usbTitle: "Print from USB storage",
@@ -627,7 +637,7 @@ const TEXT = {
     advancedHelp: "Shown inside the complete editor panel.",
     close: "Close",
     directPrint: "Direct print",
-    directPrintHelp: "Direct local-IP printing is available in Android app 1.2.0. Direct cloud printing still requires official Bambu Lab partner authorization.",
+    directPrintHelp: "Experimental local-IP printing through Developer Mode is available in Android app 1.2.1. Direct cloud printing still requires official Bambu Lab partner authorization.",
     realEditor: "Real plate editor",
     realEditorHelp: "Move, rotate, scale, delete, duplicate, split, undo/redo, multi-plate editing and 3MF save.",
     layers: "layers",
@@ -751,10 +761,9 @@ function fallbackSettings(profile: PrinterProfile): SlicerSettings {
 async function loadVerifiedProfile(profile: PrinterProfile, quality: QualityId, strength: StrengthId, support: boolean): Promise<LoadedProfile> {
   const api = await import("three-slicer/settings");
   const machine = api.printerSettings(profile.presetName) ?? fallbackSettings(profile);
-  const processApi = await api.processPresets();
+  const [processApi, filamentApi] = await Promise.all([api.processPresets(), api.filamentPresets()]);
   const processName = profile.processPresets[quality];
   const process = processApi.settingsFor(processName) ?? {};
-  const filamentApi = await api.filamentPresets();
   const filament = filamentApi.settingsFor(profile.materialPreset) ?? {};
   const identity: SlicerSettings = {
     printer_model: profile.model,
@@ -871,6 +880,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
       discovery: false,
       lanConnection: false,
       telemetry: false,
+      rawGcodePrintJob: false,
       packagePrintJob: false,
       fileTransfer: false,
       startPrint: false,
@@ -1379,13 +1389,24 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     const gcode = GCODE_ARTIFACTS.get(artifactId)?.get(selectedPlate) ?? "";
     if (!gcode) { setLanMessage(t.printNotReady); return; }
     const required = nativeEnvironment.capabilities;
-    if (!printerStatus.connected || !required.packagePrintJob || !required.fileTransfer || !required.startPrint) {
+    if (!printerStatus.connected || (!required.packagePrintJob && !required.rawGcodePrintJob) || !required.fileTransfer || !required.startPrint) {
       setLanMessage(t.lanBridgeIncomplete);
       return;
     }
 
     const baseName = `LEVO-${profile.shortName}-plate-${selectedPlate + 1}`;
     const gcodeFile = new File([gcode], `${baseName}.gcode`, { type: "text/x-gcode" });
+    let checksum: string;
+    try { checksum = await sha256Hex(gcodeFile); }
+    catch { setLanMessage(t.actionUnavailable); return; }
+    const confirmed = window.confirm(templateText(t.confirmLanPrint, {
+      file: gcodeFile.name,
+      printer: printerStatus.printer?.name ?? printerStatus.printer?.ip ?? "Bambu printer",
+      profile: `${profile.model} · ${profile.nozzle} mm`,
+      plate: selectedPlate + 1,
+      checksum: checksum.slice(0, 16),
+    }));
+    if (!confirmed) return;
     setLanAction("transferring");
     setLanTransferProgress(0);
     setLanMessage("");
@@ -1407,7 +1428,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
     } finally {
       setLanAction("idle");
     }
-  }, [artifactId, nativeEnvironment.capabilities, printerStatus.connected, profile, selectedPlate, t.actionUnavailable, t.lanBridgeIncomplete, t.lanPrintQueued, t.printNotReady]);
+  }, [artifactId, nativeEnvironment.capabilities, printerStatus, profile, selectedPlate, t.actionUnavailable, t.confirmLanPrint, t.lanBridgeIncomplete, t.lanPrintQueued, t.printNotReady]);
 
   const handleViewportExport = useCallback<NonNullable<ViewportProps["onExport"]>>((file, filename) => {
     const intent = exportIntentRef.current;
@@ -1656,10 +1677,11 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
   const canLanConnect = nativeEnvironment.native && nativeEnvironment.capabilities.lanConnection;
   const canLanPrint = canLanConnect
     && printerStatus.connected
-    && nativeEnvironment.capabilities.packagePrintJob
+    && (nativeEnvironment.capabilities.packagePrintJob || nativeEnvironment.capabilities.rawGcodePrintJob)
     && nativeEnvironment.capabilities.fileTransfer
     && nativeEnvironment.capabilities.startPrint
     && printerStatus.fileTransferVerified !== false
+    && (printerStatus.state === undefined || printerStatus.state === "idle")
     && printReady;
   const installAppUpdate = useCallback(async () => {
     if (updateAction !== "idle") return;
@@ -1687,7 +1709,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
           <FileSelectControl className="import-action" label={t.files} disabled={!Viewport || Boolean(importProgress)} onFiles={handlePickedFiles}><Icon name="file"/><span>{t.files}</span></FileSelectControl>
           <button className="new-project-action" onClick={newProject} title={t.newProject}><Icon name="plus"/><span>{t.newProject}</span></button>
           <button onClick={() => void openProjects()} title={t.projects}><Icon name="save"/><span>{t.projects}</span></button>
-          {!nativeEnvironment.native && <a className="app-download-action" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
+          {!nativeEnvironment.native && <a className="app-download-action" href="https://github.com/aliamer229/Levo_slicer/releases/latest/download/LEVO-Studio-Android-v1.2.1.apk" title={t.downloadAndroid}><Icon name="save"/><span>{t.installAndroid}</span></a>}
           {updateStatus?.available && <button className="app-update-action" onClick={() => setSheet("about")} title={t.updateAvailable}><Icon name="save"/><span>{t.updateAvailable}</span></button>}
           {printReady && <button className="header-print-action" onClick={openPrintCenter}><Icon name="print"/><span>{t.print}</span></button>}
           <button className="connect-action" onClick={() => setSheet("connect")} title={t.connectPrinter}><Icon name="print"/><span>{t.connectPrinter}</span></button>
@@ -1856,7 +1878,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
                 <span><b>{canLanConnect ? t.appBridgeReady : t.appBridgePreparing}</b><small>{!nativeEnvironment.native ? t.lanUnavailableWeb : !canLanConnect ? t.lanBridgeIncomplete : t.lanRequirements}</small></span>
               </div>
 
-              {!nativeEnvironment.native && <a className="apk-download-card" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk">
+              {!nativeEnvironment.native && <a className="apk-download-card" href="https://github.com/aliamer229/Levo_slicer/releases/latest/download/LEVO-Studio-Android-v1.2.1.apk">
                 <Icon name="save"/><span><b>{t.downloadAndroid}</b><small>{t.downloadAndroidHelp}</small></span>
               </a>}
 
@@ -1925,7 +1947,7 @@ export default function SlicerClient({ user = null }: { user?: { displayName: st
             <div className="capability partial"><i/><span><strong>{t.missingTools}</strong><small>{t.missingToolsHelp}</small></span></div>
             <div className="capability partial"><i/><span><strong>{t.directPrint}</strong><small>{t.directPrintHelp}</small></span></div>
             <button className="connection-details-button" onClick={() => setSheet("connect")}><Icon name="print"/><span>{t.connectPrinter}</span><Icon name="external"/></button>
-            {!nativeEnvironment.native && <a className="about-app-download" href="https://levo-web-slicer.aliamer59409.chatgpt.site/downloads/LEVO-Studio-Android-v1.2.0.apk" download="LEVO-Studio-Android-v1.2.0.apk">{t.downloadAndroid}</a>}
+            {!nativeEnvironment.native && <a className="about-app-download" href="https://github.com/aliamer229/Levo_slicer/releases/latest/download/LEVO-Studio-Android-v1.2.1.apk">{t.downloadAndroid}</a>}
             <p className="levonis-rights">{t.levonisRights}</p>
             <details className="legal-details">
               <summary>{t.legalInfo}</summary>

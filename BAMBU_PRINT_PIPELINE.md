@@ -33,7 +33,9 @@ Official references:
 
 ## Mobile bridge milestone
 
-The repository now contains a shared Capacitor 8 app for iOS and Android plus a versioned `LevoPrinter` contract. The web/native boundary supports capability negotiation and a sequential 192 KiB transfer protocol with per-asset SHA-256 validation, idempotency keys, cancellation, and native cache cleanup. Both native plugins currently advertise LAN transport, packaging, upload, telemetry, and start as unavailable. This is intentional: the UI cannot enable those controls before their respective adapters and physical-printer tests exist.
+The repository contains a shared Capacitor 8 app for iOS and Android plus a versioned `LevoPrinter` contract. The web/native boundary supports capability negotiation and a sequential 192 KiB transfer protocol with declared-size bounds, per-asset SHA-256 validation, cancellation, and native cache cleanup. Android 1.2.1 advertises authenticated discovery, MQTT telemetry, FTPS transfer, and the printer's Developer Mode raw-G-code command as a distinct `rawGcodePrintJob` capability. It pins both transport certificates, keeps the access code in memory, requires an idle printer and a final checksum-bound user confirmation, and requires a matching MQTT acknowledgement (or live transition out of idle after an acknowledgement timeout). iOS continues to advertise those adapters as unavailable.
+
+The Android bridge deliberately reports `packagePrintJob: false`: raw `.gcode` is not presented as a Bambu `.gcode.3mf` package. Physical X2D/H2D firmware verification remains outstanding, so this LAN path is marked experimental rather than certified.
 
 ## Evidence required before enabling
 
@@ -46,4 +48,4 @@ The repository now contains a shared Capacitor 8 app for iOS and Android plus a 
 - Verified upload, start, cancellation, reconnect, and error-state behavior.
 - A documented firmware/authorization compatibility matrix.
 
-Until all local gates pass, the app may show LAN setup and capability status but must not enable upload/start or report a printer connected without an authenticated live acknowledgement. The website remains at real G-code preview/download/share, USB handoff, Bambu Connect/Studio, and the phone-only private MakerWorld → Bambu Handy flow.
+Until all package gates pass, the app must not advertise `.gcode.3mf` packaging. The experimental Android raw-G-code route may run only after authenticated live status, encrypted file-transfer verification, an idle-state check, and explicit final confirmation. The website remains at real G-code preview/download/share, USB handoff, Bambu Connect/Studio, and the phone-only private MakerWorld → Bambu Handy flow.
